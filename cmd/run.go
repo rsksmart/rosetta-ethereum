@@ -22,9 +22,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/coinbase/rosetta-ethereum/configuration"
-	"github.com/coinbase/rosetta-ethereum/ethereum"
-	"github.com/coinbase/rosetta-ethereum/services"
+	"github.com/rsksmart/rosetta-rsk/configuration"
+	"github.com/rsksmart/rosetta-rsk/ethereum"
+	"github.com/rsksmart/rosetta-rsk/services"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/server"
@@ -51,7 +51,7 @@ const (
 var (
 	runCmd = &cobra.Command{
 		Use:   "run",
-		Short: "Run rosetta-ethereum",
+		Short: "Run rosetta-rsk",
 		RunE:  runRunCmd,
 	}
 )
@@ -126,7 +126,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 
 	err = g.Wait()
 	if SignalReceived {
-		return errors.New("rosetta-ethereum halted")
+		return errors.New("rosetta-rsk halted")
 	}
 
 	return err

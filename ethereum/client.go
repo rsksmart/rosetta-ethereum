@@ -263,11 +263,14 @@ func (ec *Client) getUncles(
 			"server returned non-empty transaction list but block header indicates no transactions",
 		)
 	}
-	if head.TxHash != types.EmptyRootHash && len(body.Transactions) == 0 {
-		return nil, fmt.Errorf(
-			"server returned empty transaction list but block header indicates transactions",
-		)
-	}
+
+	// Comment this because we are filtering REMASC tx and we have many blocks with just that tx
+	// if head.TxHash != types.EmptyRootHash && len(body.Transactions) == 0 {
+	// 	return nil, fmt.Errorf(
+	// 		"server returned empty transaction list but block header indicates transactions",
+	// 	)
+	// }
+
 	// Load uncles because they are not included in the block response.
 	var uncles []*types.Header
 	if len(body.UncleHashes) > 0 {
@@ -323,7 +326,9 @@ func (ec *Client) getBlock(
 	if err := json.Unmarshal(raw, &head); err != nil {
 		return nil, nil, err
 	}
+
 	if err := json.Unmarshal(raw, &body); err != nil {
+		fmt.Println("error en unmarshal body")
 		return nil, nil, err
 	}
 
@@ -333,6 +338,9 @@ func (ec *Client) getBlock(
 	}
 
 	// Get all transaction receipts
+	// fmt.Println("getting receipts")
+	// fmt.Println("transactions")
+	// fmt.Println(body.Transactions[0].tx.Hash().Hex())
 	receipts, err := ec.getBlockReceipts(ctx, body.Hash, body.Transactions)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: could not get receipts for %x", err, body.Hash[:])
@@ -346,13 +354,14 @@ func (ec *Client) getBlock(
 	var traces []*rpcCall
 	var rawTraces []*rpcRawCall
 	var addTraces bool
-	if head.Number.Int64() != GenesisBlockIndex { // not possible to get traces at genesis
-		addTraces = true
-		traces, rawTraces, err = ec.getBlockTraces(ctx, body.Hash)
-		if err != nil {
-			return nil, nil, fmt.Errorf("%w: could not get traces for %x", err, body.Hash[:])
-		}
-	}
+	
+	// if head.Number.Int64() != GenesisBlockIndex { // not possible to get traces at genesis
+	// 	addTraces = true
+	// 	traces, rawTraces, err = ec.getBlockTraces(ctx, body.Hash)
+	// 	if err != nil {
+	// 		return nil, nil, fmt.Errorf("%w: could not get traces for %x", err, body.Hash[:])
+	// 	}
+	// }
 
 	// Convert all txs to loaded txs
 	txs := make([]*types.Transaction, len(body.Transactions))
@@ -393,6 +402,7 @@ func (ec *Client) getBlockTraces(
 	var calls []*rpcCall
 	var rawCalls []*rpcRawCall
 	var raw json.RawMessage
+	//TODO we don't have this method
 	err := ec.c.CallContext(ctx, &raw, "debug_traceBlockByHash", blockHash, ec.tc)
 	if err != nil {
 		return nil, nil, err
@@ -423,13 +433,17 @@ func (ec *Client) getBlockReceipts(
 
 	reqs := make([]rpc.BatchElem, len(txs))
 	for i := range reqs {
+		// fmt.Println("eth_getTransactionReceipt -> " + txs[i].txExtraInfo.Hash.Hex())
+		// fmt.Println("from -> " + txs[i].txExtraInfo.From.Hex())
 		reqs[i] = rpc.BatchElem{
 			Method: "eth_getTransactionReceipt",
-			Args:   []interface{}{txs[i].tx.Hash().Hex()},
+			Args:   []interface{}{txs[i].txExtraInfo.Hash.Hex()},
 			Result: &receipts[i],
 		}
 	}
+	
 	if err := ec.c.BatchCallContext(ctx, reqs); err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 	for i := range reqs {
@@ -437,7 +451,8 @@ func (ec *Client) getBlockReceipts(
 			return nil, reqs[i].Error
 		}
 		if receipts[i] == nil {
-			return nil, fmt.Errorf("got empty receipt for %x", txs[i].tx.Hash().Hex())
+			fmt.Println(txs[i].txExtraInfo.Hash.Hex())
+			return nil, fmt.Errorf("got empty receipt for %x", txs[i].txExtraInfo.Hash.Hex())
 		}
 
 		if receipts[i].BlockHash != blockHash {
@@ -717,17 +732,44 @@ type txExtraInfo struct {
 	BlockNumber *string         `json:"blockNumber,omitempty"`
 	BlockHash   *common.Hash    `json:"blockHash,omitempty"`
 	From        *common.Address `json:"from,omitempty"`
+	Hash        *common.Hash    `json:"hash,omitempty"`
 }
 
 type rpcTransaction struct {
 	tx *types.Transaction
 	txExtraInfo
+	V  *big.Int
+	R  *big.Int
+	S  *big.Int
 }
 
 func (tx *rpcTransaction) UnmarshalJSON(msg []byte) error {
 	if err := json.Unmarshal(msg, &tx.tx); err != nil {
+		fmt.Println("Error unmarshaling rpcTransaction")
 		return err
 	}
+
+	json.Unmarshal(msg, &tx.txExtraInfo)
+
+	fmt.Println("From")
+	fmt.Println(tx.txExtraInfo.From.Hex())
+	fmt.Println("BlockNumber")
+	fmt.Println(&tx.txExtraInfo.BlockNumber)
+	fmt.Println("BlockHash")
+	fmt.Println(tx.txExtraInfo.BlockHash.Hex())
+	fmt.Println("Nonce")
+	fmt.Println(tx.tx.Nonce())
+	fmt.Println("Value")
+	fmt.Println(tx.tx.Value())
+	fmt.Println("GasPrice")
+	fmt.Println(tx.tx.GasPrice())
+	fmt.Println("Hash")
+	fmt.Println(tx.tx.Hash().Hex())
+	fmt.Println("txExtraInfo.Hash")
+	fmt.Println(tx.txExtraInfo.Hash.Hex())
+	fmt.Println("Input")
+	fmt.Println(tx.tx.Data())
+
 	return json.Unmarshal(msg, &tx.txExtraInfo)
 }
 
@@ -894,11 +936,11 @@ func (ec *Client) populateTransaction(
 	feeOps := feeOps(tx)
 	ops = append(ops, feeOps...)
 
-	// Compute trace operations
-	traces := flattenTraces(tx.Trace, []*flatCall{})
+	// // Compute trace operations
+	// traces := flattenTraces(tx.Trace, []*flatCall{})
 
-	traceOps := traceOps(traces, len(ops))
-	ops = append(ops, traceOps...)
+	// traceOps := traceOps(traces, len(ops))
+	// ops = append(ops, traceOps...)
 
 	// Marshal receipt and trace data
 	// TODO: replace with marshalJSONMap (used in `services`)
@@ -912,10 +954,11 @@ func (ec *Client) populateTransaction(
 		return nil, err
 	}
 
-	var traceMap map[string]interface{}
-	if err := json.Unmarshal(tx.RawTrace, &traceMap); err != nil {
-		return nil, err
-	}
+	// var traceMap map[string]interface{}
+	// if err := json.Unmarshal(tx.RawTrace, &traceMap); err != nil {
+	// 	return nil, err
+	// }
+
 
 	populatedTransaction := &RosettaTypes.Transaction{
 		TransactionIdentifier: &RosettaTypes.TransactionIdentifier{
@@ -926,7 +969,7 @@ func (ec *Client) populateTransaction(
 			"gas_limit": hexutil.EncodeUint64(tx.Transaction.Gas()),
 			"gas_price": hexutil.EncodeBig(tx.Transaction.GasPrice()),
 			"receipt":   receiptMap,
-			"trace":     traceMap,
+			"trace":     nil,
 		},
 	}
 

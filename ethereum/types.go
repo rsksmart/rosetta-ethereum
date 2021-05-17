@@ -27,8 +27,8 @@ const (
 	// NodeVersion is the version of geth we are using.
 	NodeVersion = "1.9.24"
 
-	// Blockchain is Ethereum.
-	Blockchain string = "Ethereum"
+	// Blockchain is RSK.
+	Blockchain string = "RSK"
 
 	// MainnetNetwork is the value of the network
 	// in MainnetNetworkIdentifier.
@@ -36,7 +36,7 @@ const (
 
 	// TestnetNetwork is the value of the network
 	// in TestnetNetworkIdentifier.
-	TestnetNetwork string = "Ropsten"
+	TestnetNetwork string = "Testnet"
 
 	// Symbol is the symbol value
 	// used in Currency.
@@ -101,7 +101,7 @@ const (
 
 	// MaxUncleDepth is the maximum depth for
 	// an uncle to be rewarded.
-	MaxUncleDepth = 8
+	MaxUncleDepth = 1
 
 	// GenesisBlockIndex is the index of the
 	// genesis block.
@@ -114,7 +114,7 @@ const (
 	// MainnetGethArguments are the arguments to start a mainnet geth instance.
 	MainnetGethArguments = `--config=/app/ethereum/geth.toml --gcmode=archive --graphql`
 
-	// IncludeMempoolCoins does not apply to rosetta-ethereum as it is not UTXO-based.
+	// IncludeMempoolCoins does not apply to rosetta-rsk as it is not UTXO-based.
 	IncludeMempoolCoins = false
 )
 

@@ -19,7 +19,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/coinbase/rosetta-ethereum/ethereum"
+	"github.com/rsksmart/rosetta-rsk/ethereum"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/params"

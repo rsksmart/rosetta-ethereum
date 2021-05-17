@@ -20,7 +20,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/coinbase/rosetta-ethereum/ethereum"
+	"github.com/rsksmart/rosetta-rsk/ethereum"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -63,16 +63,16 @@ const (
 	PortEnv = "PORT"
 
 	// GethEnv is an optional environment variable
-	// used to connect rosetta-ethereum to an already
+	// used to connect rosetta-rsk to an already
 	// running geth node.
 	GethEnv = "GETH"
 
 	// DefaultGethURL is the default URL for
 	// a running geth node. This is used
 	// when GethEnv is not populated.
-	DefaultGethURL = "http://localhost:8545"
+	DefaultGethURL = "http://localhost:4444"
 
-	// MiddlewareVersion is the version of rosetta-ethereum.
+	// MiddlewareVersion is the version of rosetta-rsk.
 	MiddlewareVersion = "0.0.4"
 )
 
@@ -108,10 +108,15 @@ func LoadConfiguration() (*Configuration, error) {
 	}
 
 	networkValue := os.Getenv(NetworkEnv)
+	fmt.Println("Switch")
+	fmt.Println(ethereum.Blockchain)
+	fmt.Println(ethereum.MainnetNetwork)
+	fmt.Println(ethereum.MainnetGenesisBlockIdentifier)
+	fmt.Println(params.MainnetChainConfig)
 	switch networkValue {
 	case Mainnet:
 		config.Network = &types.NetworkIdentifier{
-			Blockchain: ethereum.Blockchain,
+			Blockchain: "RSK",
 			Network:    ethereum.MainnetNetwork,
 		}
 		config.GenesisBlockIdentifier = ethereum.MainnetGenesisBlockIdentifier
@@ -119,7 +124,7 @@ func LoadConfiguration() (*Configuration, error) {
 		config.GethArguments = ethereum.MainnetGethArguments
 	case Testnet:
 		config.Network = &types.NetworkIdentifier{
-			Blockchain: ethereum.Blockchain,
+			Blockchain: "RSK",
 			Network:    ethereum.TestnetNetwork,
 		}
 		config.GenesisBlockIdentifier = ethereum.TestnetGenesisBlockIdentifier
