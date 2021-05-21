@@ -101,7 +101,7 @@ const (
 
 	// MaxUncleDepth is the maximum depth for
 	// an uncle to be rewarded.
-	MaxUncleDepth = 1
+	MaxUncleDepth = 1 // TODO: preguntar por que
 
 	// GenesisBlockIndex is the index of the
 	// genesis block.
@@ -116,6 +116,15 @@ const (
 
 	// IncludeMempoolCoins does not apply to rosetta-rsk as it is not UTXO-based.
 	IncludeMempoolCoins = false
+
+	BridgeTransactionDestinationAddress = "0x0000000000000000000000000000000001000006"
+	RemascTransactionDestinationAddress = "0x0000000000000000000000000000000001000008"
+	RskNormalTransactionCode            = "0x"
+	RskRemascTransactionType            = "remasc"
+	RskBridgeTransactionType            = "bridge"
+	RskContractCallTransactionType      = "contract call"
+	RskContractCreationTransactionType  = "contract creation"
+	RskNormalTransactionType            = "normal"
 )
 
 var (
@@ -183,11 +192,6 @@ type JSONRPC interface {
 	Close()
 }
 
-// GraphQL is the interface for accessing go-ethereum's GraphQL endpoint.
-type GraphQL interface {
-	Query(ctx context.Context, input string) (string, error)
-}
-
 // CallType returns a boolean indicating
 // if the provided trace type is a call type.
 func CallType(t string) bool {
@@ -222,4 +226,24 @@ func CreateType(t string) bool {
 	}
 
 	return false
+}
+
+type RskBlock struct {
+	Number       string            `json:"number"`
+	Hash         string            `json:"hash"`
+	ParentHash   string            `json:"parentHash"`
+	Timestamp    string            `json:"timestamp"`
+	Transactions []*RskTransaction `json:"transactions"`
+}
+
+// contract call: 623429 0x67a12211d26c56a4439b2175b67fb20ad90c2800d1b3d338c8d733ebeb648ac7
+// normal transfer: 623431 0x47bd2c10f89bdf3e97337eae7eeeeafb38ee159c5f847f0e5492f5939bd38508
+// contract creation: 647449 0xf0470726b044468ff0a507350e65746741f54ab2b2e42910b378d8dd9c853b56
+// remasc: 647449 0xf0470726b044468ff0a507350e65746741f54ab2b2e42910b378d8dd9c853b56
+// bridge: 647432 0xb1a142f62627b0fa33e4275db20518ca2928004b8cbf409197c432de44ac6b5d
+
+type RskTransaction struct {
+	Hash               string `json:"hash"`
+	TransactionIndex   string `json:"transactionIndex"` // para operation index
+	DestinationAddress string `json:"to"`
 }

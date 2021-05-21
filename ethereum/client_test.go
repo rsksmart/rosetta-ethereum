@@ -41,11 +41,8 @@ import (
 
 func TestStatus_NotReady(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -69,16 +66,12 @@ func TestStatus_NotReady(t *testing.T) {
 	assert.True(t, errors.Is(err, ethereum.NotFound))
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestStatus_NotSyncing(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -189,16 +182,12 @@ func TestStatus_NotSyncing(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestStatus_Syncing(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -314,236 +303,15 @@ func TestStatus_Syncing(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
-func TestBalance(t *testing.T) {
+func TestBalance_ReturnsNotImplementedError(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
-
 	ctx := context.Background()
-	result, err := ioutil.ReadFile(
-		"testdata/account_balance_0x4cfc400fed52f9681b42454c2db4b18ab98f8de1.json",
-	)
-	assert.NoError(t, err)
-	mockGraphQL.On(
-		"Query",
-		ctx,
-		`{
-			block(){
-				hash
-				number
-				account(address:"0x2f93B2f047E05cdf602820Ac4B3178efc2b43D55"){
-					balance
-					transactionCount
-					code
-				}
-			}
-		}`,
-	).Return(
-		string(result),
-		nil,
-	).Once()
-
-	resp, err := c.Balance(
-		ctx,
-		&RosettaTypes.AccountIdentifier{
-			Address: "0x2f93B2f047E05cdf602820Ac4B3178efc2b43D55",
-		},
-		nil,
-	)
-	assert.Equal(t, &RosettaTypes.AccountBalanceResponse{
-		BlockIdentifier: &RosettaTypes.BlockIdentifier{
-			Hash:  "0x9999286598edf07606228ba0233736e544a086a8822c61f9db3706887fc25dda",
-			Index: 8165,
-		},
-		Balances: []*RosettaTypes.Amount{
-			{
-				Value:    "10372550232136640000000",
-				Currency: Currency,
-			},
-		},
-		Metadata: map[string]interface{}{
-			"code":  "0x",
-			"nonce": int64(0),
-		},
-	}, resp)
-	assert.NoError(t, err)
-
-	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
-}
-
-func TestBalance_Historical_Hash(t *testing.T) {
-	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
-	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
-	}
-
-	ctx := context.Background()
-	result, err := ioutil.ReadFile(
-		"testdata/account_balance_0x4cfc400fed52f9681b42454c2db4b18ab98f8de1.json",
-	)
-	assert.NoError(t, err)
-	mockGraphQL.On(
-		"Query",
-		ctx,
-		`{
-			block(hash: "0x9999286598edf07606228ba0233736e544a086a8822c61f9db3706887fc25dda"){
-				hash
-				number
-				account(address:"0x2f93B2f047E05cdf602820Ac4B3178efc2b43D55"){
-					balance
-					transactionCount
-					code
-				}
-			}
-		}`,
-	).Return(
-		string(result),
-		nil,
-	).Once()
-
-	resp, err := c.Balance(
-		ctx,
-		&RosettaTypes.AccountIdentifier{
-			Address: "0x2f93B2f047E05cdf602820Ac4B3178efc2b43D55",
-		},
-		&RosettaTypes.PartialBlockIdentifier{
-			Hash: RosettaTypes.String(
-				"0x9999286598edf07606228ba0233736e544a086a8822c61f9db3706887fc25dda",
-			),
-			Index: RosettaTypes.Int64(8165),
-		},
-	)
-	assert.Equal(t, &RosettaTypes.AccountBalanceResponse{
-		BlockIdentifier: &RosettaTypes.BlockIdentifier{
-			Hash:  "0x9999286598edf07606228ba0233736e544a086a8822c61f9db3706887fc25dda",
-			Index: 8165,
-		},
-		Balances: []*RosettaTypes.Amount{
-			{
-				Value:    "10372550232136640000000",
-				Currency: Currency,
-			},
-		},
-		Metadata: map[string]interface{}{
-			"code":  "0x",
-			"nonce": int64(0),
-		},
-	}, resp)
-	assert.NoError(t, err)
-
-	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
-}
-
-func TestBalance_Historical_Index(t *testing.T) {
-	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
-	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
-	}
-
-	ctx := context.Background()
-	result, err := ioutil.ReadFile(
-		"testdata/account_balance_0x4cfc400fed52f9681b42454c2db4b18ab98f8de1.json",
-	)
-	assert.NoError(t, err)
-	mockGraphQL.On(
-		"Query",
-		ctx,
-		`{
-			block(number: 8165){
-				hash
-				number
-				account(address:"0x2f93B2f047E05cdf602820Ac4B3178efc2b43D55"){
-					balance
-					transactionCount
-					code
-				}
-			}
-		}`,
-	).Return(
-		string(result),
-		nil,
-	).Once()
-
-	resp, err := c.Balance(
-		ctx,
-		&RosettaTypes.AccountIdentifier{
-			Address: "0x2f93B2f047E05cdf602820Ac4B3178efc2b43D55",
-		},
-		&RosettaTypes.PartialBlockIdentifier{
-			Index: RosettaTypes.Int64(8165),
-		},
-	)
-	assert.Equal(t, &RosettaTypes.AccountBalanceResponse{
-		BlockIdentifier: &RosettaTypes.BlockIdentifier{
-			Hash:  "0x9999286598edf07606228ba0233736e544a086a8822c61f9db3706887fc25dda",
-			Index: 8165,
-		},
-		Balances: []*RosettaTypes.Amount{
-			{
-				Value:    "10372550232136640000000",
-				Currency: Currency,
-			},
-		},
-		Metadata: map[string]interface{}{
-			"code":  "0x",
-			"nonce": int64(0),
-		},
-	}, resp)
-	assert.NoError(t, err)
-
-	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
-}
-
-func TestBalance_InvalidAddress(t *testing.T) {
-	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
-	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
-	}
-
-	ctx := context.Background()
-	result, err := ioutil.ReadFile("testdata/account_balance_invalid.json")
-	assert.NoError(t, err)
-	mockGraphQL.On(
-		"Query",
-		ctx,
-		`{
-			block(){
-				hash
-				number
-				account(address:"0x4cfc400fed52f9681b42454c2db4b18ab98f8de"){
-					balance
-					transactionCount
-					code
-				}
-			}
-		}`,
-	).Return(
-		string(result),
-		nil,
-	).Once()
 
 	resp, err := c.Balance(
 		ctx,
@@ -554,68 +322,13 @@ func TestBalance_InvalidAddress(t *testing.T) {
 	)
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-
-	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
-}
-
-func TestBalance_InvalidHash(t *testing.T) {
-	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
-	c := &Client{
-		c:              mockJSONRPC,
-		g:              mockGraphQL,
-		traceSemaphore: semaphore.NewWeighted(100),
-	}
-
-	ctx := context.Background()
-	result, err := ioutil.ReadFile("testdata/account_balance_invalid_block.json")
-	assert.NoError(t, err)
-	mockGraphQL.On(
-		"Query",
-		ctx,
-		`{
-			block(hash: "0x7d2a2713026a0e66f131878de2bb2df2fff6c24562c1df61ec0265e5fedf2626"){
-				hash
-				number
-				account(address:"0x2f93B2f047E05cdf602820Ac4B3178efc2b43D55"){
-					balance
-					transactionCount
-					code
-				}
-			}
-		}`,
-	).Return(
-		string(result),
-		nil,
-	).Once()
-
-	resp, err := c.Balance(
-		ctx,
-		&RosettaTypes.AccountIdentifier{
-			Address: "0x2f93B2f047E05cdf602820Ac4B3178efc2b43D55",
-		},
-		&RosettaTypes.PartialBlockIdentifier{
-			Hash: RosettaTypes.String(
-				"0x7d2a2713026a0e66f131878de2bb2df2fff6c24562c1df61ec0265e5fedf2626",
-			),
-		},
-	)
-	assert.Nil(t, resp)
-	assert.Error(t, err)
-
-	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestCall(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
 
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -671,16 +384,13 @@ func TestCall(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestCall_InvalidArgs(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
 
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -695,16 +405,13 @@ func TestCall_InvalidArgs(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrCallParametersInvalid))
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestCall_InvalidMethod(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
 
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -719,7 +426,6 @@ func TestCall_InvalidMethod(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrCallMethodInvalid))
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func testTraceConfig() (*eth.TraceConfig, error) {
@@ -737,13 +443,11 @@ func testTraceConfig() (*eth.TraceConfig, error) {
 
 func TestBlock_Current(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
 
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -769,27 +473,28 @@ func TestBlock_Current(t *testing.T) {
 			*r = json.RawMessage(file)
 		},
 	).Once()
-	mockJSONRPC.On(
-		"CallContext",
-		ctx,
-		mock.Anything,
-		"debug_traceBlockByHash",
-		common.HexToHash("0xba9ded5ca1ec9adb9451bf062c9de309d9552fa0f0254a7b982d3daf7ae436ae"),
-		tc,
-	).Return(
-		nil,
-	).Run(
-		func(args mock.Arguments) {
-			r := args.Get(1).(*json.RawMessage)
-
-			file, err := ioutil.ReadFile(
-				"testdata/block_trace_0xba9ded5ca1ec9adb9451bf062c9de309d9552fa0f0254a7b982d3daf7ae436ae.json",
-			) // nolint
-			assert.NoError(t, err)
-
-			*r = json.RawMessage(file)
-		},
-	).Once()
+	// TODO: re-enable the following mock in some form if traces are added.
+	//mockJSONRPC.On(
+	//	"CallContext",
+	//	ctx,
+	//	mock.Anything,
+	//	"debug_traceBlockByHash",
+	//	common.HexToHash("0xba9ded5ca1ec9adb9451bf062c9de309d9552fa0f0254a7b982d3daf7ae436ae"),
+	//	tc,
+	//).Return(
+	//	nil,
+	//).Run(
+	//	func(args mock.Arguments) {
+	//		r := args.Get(1).(*json.RawMessage)
+	//
+	//		file, err := ioutil.ReadFile(
+	//			"testdata/block_trace_0xba9ded5ca1ec9adb9451bf062c9de309d9552fa0f0254a7b982d3daf7ae436ae.json",
+	//		) // nolint
+	//		assert.NoError(t, err)
+	//
+	//		*r = json.RawMessage(file)
+	//	},
+	//).Once()
 
 	correctRaw, err := ioutil.ReadFile("testdata/block_response_10992.json")
 	assert.NoError(t, err)
@@ -804,18 +509,14 @@ func TestBlock_Current(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestBlock_Hash(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -880,18 +581,14 @@ func TestBlock_Hash(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestBlock_Index(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -954,7 +651,6 @@ func TestBlock_Index(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func jsonifyBlock(b *RosettaTypes.Block) (*RosettaTypes.Block, error) {
@@ -974,13 +670,10 @@ func jsonifyBlock(b *RosettaTypes.Block) (*RosettaTypes.Block, error) {
 // Block with transaction
 func TestBlock_10994(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -1074,19 +767,15 @@ func TestBlock_10994(t *testing.T) {
 	assert.Equal(t, correctResp.Block, jsonResp)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 // Block with uncle
 func TestBlock_10991(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -1179,19 +868,15 @@ func TestBlock_10991(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 // Block with partial success transaction
 func TestBlock_239782(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -1285,19 +970,15 @@ func TestBlock_239782(t *testing.T) {
 	assert.Equal(t, correctResp.Block, jsonResp)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 // Block with transfer to destroyed contract
 func TestBlock_363415(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -1397,19 +1078,15 @@ func TestBlock_363415(t *testing.T) {
 	assert.Equal(t, correctResp.Block, jsonResp)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 // Block with transfer to precompiled
 func TestBlock_363753(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -1509,19 +1186,15 @@ func TestBlock_363753(t *testing.T) {
 	assert.Equal(t, correctResp.Block, jsonResp)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 // Block with complex self-destruct
 func TestBlock_468179(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -1621,19 +1294,15 @@ func TestBlock_468179(t *testing.T) {
 	assert.Equal(t, correctResp.Block, jsonResp)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 // Block with complex resurrection
 func TestBlock_363366(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -1734,19 +1403,15 @@ func TestBlock_363366(t *testing.T) {
 	assert.Equal(t, correctResp.Block, jsonResp)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 // Block with blackholed funds
 func TestBlock_468194(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	tc, err := testTraceConfig()
 	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		tc:             tc,
 		p:              params.RopstenChainConfig,
 		traceSemaphore: semaphore.NewWeighted(100),
@@ -1846,16 +1511,12 @@ func TestBlock_468194(t *testing.T) {
 	assert.Equal(t, correctResp.Block, jsonResp)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestPendingNonceAt(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -1884,16 +1545,12 @@ func TestPendingNonceAt(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestSuggestGasPrice(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -1919,16 +1576,12 @@ func TestSuggestGasPrice(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
 
 func TestSendTransaction(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	mockGraphQL := &mocks.GraphQL{}
-
 	c := &Client{
 		c:              mockJSONRPC,
-		g:              mockGraphQL,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -1955,5 +1608,4 @@ func TestSendTransaction(t *testing.T) {
 	))
 
 	mockJSONRPC.AssertExpectations(t)
-	mockGraphQL.AssertExpectations(t)
 }
