@@ -272,7 +272,7 @@ func (ec *Client) buildRosettaFormattedBlock(ctx context.Context, rskBlock RskBl
 
 	rosettaTransactions, err := ec.buildRosettaTransactions(ctx, rskBlock)
 	if err != nil {
-		return nil, fmt.Errorf("%w: failed to build rosetta transactions")
+		return nil, fmt.Errorf("%w: failed to build rosetta transactions", err)
 	}
 
 	return &RosettaTypes.Block{

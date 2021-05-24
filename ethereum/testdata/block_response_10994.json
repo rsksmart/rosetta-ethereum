@@ -2,125 +2,78 @@
     "block": {
         "block_identifier": {
             "index": 10994,
-            "hash": "0xb6a2558c2e54bfb11247d0764311143af48d122f29fc408d9519f47d70aa2d50"
+            "hash": "0x67a12211d26c56a4439b2175b67fb20ad90c2800d1b3d338c8d733ebeb648ac7"
         },
         "parent_block_identifier": {
             "index": 10993,
-            "hash": "0x8dae0579c66a3e173a09d372f6e5bfcde02025e332c6bef04a78e223875045f2"
+            "hash": "0xfd07a397892204d3380fcfab04d5e97e578d834cbe7853d9a780c304a980c6e2"
         },
-        "timestamp": 1479731757000,
+        "timestamp": 1533064412,
         "transactions": [
             {
                 "transaction_identifier": {
-                    "hash": "0xb6a2558c2e54bfb11247d0764311143af48d122f29fc408d9519f47d70aa2d50"
+                    "hash": "0xb63542faeafc7a63158cfa10a439e425723867dfac7b2355ba1ea5efd7a1aed5"
                 },
                 "operations": [
                     {
                         "operation_identifier": {
                             "index": 0
                         },
-                        "type": "MINER_REWARD",
-                        "status": "SUCCESS",
-                        "account": {
-                            "address": "0xfFC614eE978630D7fB0C06758DeB580c152154d3"
-                        },
-                        "amount": {
-                            "value": "5000000000000000000",
-                            "currency": {
-                                "symbol": "ETH",
-                                "decimals": 18
-                            }
-                        }
+                        "type": "contract call"
                     }
                 ]
             },
             {
                 "transaction_identifier": {
-                    "hash": "0xd83b1dcf7d47c4115d78ce0361587604e8157591b118bd64ada02e86c9d5ca7e"
+                    "hash": "0x1286b5b8febab96eadd5590172149483550ba5d6dd4f86121e3e5f588e367c0c"
                 },
                 "operations": [
                     {
                         "operation_identifier": {
-                            "index": 0
-                        },
-                        "type": "FEE",
-                        "status": "SUCCESS",
-                        "account": {
-                            "address": "0x004B7F28A01a9f9142B2FC818B22325C4c049166"
-                        },
-                        "amount": {
-                            "value": "-557720000000000",
-                            "currency": {
-                                "symbol": "ETH",
-                                "decimals": 18
-                            }
-                        }
-                    },
-                    {
-                        "operation_identifier": {
                             "index": 1
                         },
-                        "related_operations": [
-                            {
-                                "index": 0
-                            }
-                        ],
-                        "type": "FEE",
-                        "status": "SUCCESS",
-                        "account": {
-                            "address": "0xfFC614eE978630D7fB0C06758DeB580c152154d3"
+                        "type": "remasc"
+                    }
+                ]
+            },
+            {
+                "transaction_identifier": {
+                    "hash": "0x660d52aa8d15d540ff34dbd7617b5079188d28048f7f8244d91efbb6db664ab8"
+                },
+                "operations": [
+                    {
+                        "operation_identifier": {
+                            "index": 2
                         },
-                        "amount": {
-                            "value": "557720000000000",
-                            "currency": {
-                                "symbol": "ETH",
-                                "decimals": 18
-                            }
-                        }
+                        "type": "contract creation"
                     }
-                ],
-                "metadata": {
-                    "gas_limit": "0x82b7",
-                    "gas_price": "0x4a817c800",
-                    "receipt": {
-                        "blockHash": "0xb6a2558c2e54bfb11247d0764311143af48d122f29fc408d9519f47d70aa2d50",
-                        "blockNumber": "0x2af2",
-                        "contractAddress": "0x0000000000000000000000000000000000000000",
-                        "cumulativeGasUsed": "0x6cee",
-                        "gasUsed": "0x6cee",
-                        "logs": [
-                            {
-                                "address": "0x96ad73cba6a91a99d22011f4992b60adb5b2f67e",
-                                "blockHash": "0xb6a2558c2e54bfb11247d0764311143af48d122f29fc408d9519f47d70aa2d50",
-                                "blockNumber": "0x2af2",
-                                "data": "0x0000000000000000000000000000000000000000000000000000000000000003",
-                                "logIndex": "0x0",
-                                "removed": false,
-                                "topics": [
-                                    "0x191ab2c8eaffad5fde3cd3dc00d67344f756cd573644cd1dd346b163c04eb350"
-                                ],
-                                "transactionHash": "0xd83b1dcf7d47c4115d78ce0361587604e8157591b118bd64ada02e86c9d5ca7e",
-                                "transactionIndex": "0x0"
-                            }
-                        ],
-                        "logsBloom": "0x00000000000000000020000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000002000000000040000",
-                        "root": "0x9b1de4776d32404b0b463c6929e2e3b988b521442fbbd218bd24a7bbb2cef594",
-                        "status": "0x0",
-                        "transactionHash": "0xd83b1dcf7d47c4115d78ce0361587604e8157591b118bd64ada02e86c9d5ca7e",
-                        "transactionIndex": "0x0"
-                    },
-                    "trace": {
-                        "from": "0x004b7f28a01a9f9142b2fc818b22325c4c049166",
-                        "gas": "0x2edf",
-                        "gasUsed": "0x1916",
-                        "input": "0x60fe47b10000000000000000000000000000000000000000000000000000000000000003",
-                        "output": "0x",
-                        "time": "573.977µs",
-                        "to": "0x96ad73cba6a91a99d22011f4992b60adb5b2f67e",
-                        "type": "CALL",
-                        "value": "0x0"
+                ]
+            },
+            {
+                "transaction_identifier": {
+                    "hash": "0xe469375577aa798c2a777f5a5f32f48da727faf9d055e106dae8e6b125a4c153"
+                },
+                "operations": [
+                    {
+                        "operation_identifier": {
+                            "index": 3
+                        },
+                        "type": "bridge"
                     }
-                }
+                ]
+            },
+            {
+                "transaction_identifier": {
+                    "hash": "0x48c03be3173b38ce2568ea72316b7cd54d9acecd49c59813f4f4219f7a798921"
+                },
+                "operations": [
+                    {
+                        "operation_identifier": {
+                            "index": 4
+                        },
+                        "type": "normal"
+                    }
+                ]
             }
         ]
     }
