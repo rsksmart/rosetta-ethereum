@@ -17,13 +17,13 @@ package configuration
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"strconv"
 
-	"github.com/rsksmart/rosetta-rsk/ethereum"
+	"github.com/rsksmart/rosetta-rsk/rsk"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/params"
 )
 
 // Mode is the setting that determines if
@@ -39,10 +39,8 @@ const (
 	// to make outbound connections.
 	Offline Mode = "OFFLINE"
 
-	// Mainnet is the Bitcoin Mainnet.
 	Mainnet string = "MAINNET"
 
-	// Testnet is Bitcoin Testnet3.
 	Testnet string = "TESTNET"
 
 	// DataDirectory is the default location for all
@@ -62,18 +60,18 @@ const (
 	// implementation.
 	PortEnv = "PORT"
 
-	// GethEnv is an optional environment variable
+	// RskjEnv is an optional environment variable
 	// used to connect rosetta-rsk to an already
 	// running geth node.
-	GethEnv = "GETH"
+	RskjEnv = "RSKJ"
 
-	// DefaultGethURL is the default URL for
-	// a running geth node. This is used
-	// when GethEnv is not populated.
-	DefaultGethURL = "http://localhost:4444"
+	// DefaultRskjURL is the default URL for
+	// a running rskj node. This is used
+	// when RskjEnv is not populated.
+	DefaultRskjURL = "http://localhost:4444"
 
 	// MiddlewareVersion is the version of rosetta-rsk.
-	MiddlewareVersion = "0.0.4"
+	MiddlewareVersion = "0.1.0"
 )
 
 // Configuration determines how
@@ -85,9 +83,7 @@ type Configuration struct {
 	RemoteGeth             bool
 	Port                   int
 	GethArguments          string
-
-	// Block Reward Data
-	Params *params.ChainConfig
+	ChainID                *big.Int
 }
 
 // LoadConfiguration attempts to create a new Configuration
@@ -108,36 +104,31 @@ func LoadConfiguration() (*Configuration, error) {
 	}
 
 	networkValue := os.Getenv(NetworkEnv)
-	fmt.Println("Switch")
-	fmt.Println(ethereum.Blockchain)
-	fmt.Println(ethereum.MainnetNetwork)
-	fmt.Println(ethereum.MainnetGenesisBlockIdentifier)
-	fmt.Println(params.MainnetChainConfig)
 	switch networkValue {
 	case Mainnet:
 		config.Network = &types.NetworkIdentifier{
-			Blockchain: "RSK",
-			Network:    ethereum.MainnetNetwork,
+			Blockchain: rsk.Blockchain,
+			Network:    rsk.MainnetNetwork,
 		}
-		config.GenesisBlockIdentifier = ethereum.MainnetGenesisBlockIdentifier
-		config.Params = params.MainnetChainConfig
-		config.GethArguments = ethereum.MainnetGethArguments
+		config.GenesisBlockIdentifier = rsk.MainnetGenesisBlockIdentifier
+		config.ChainID = rsk.MainnetChainID
+		config.GethArguments = rsk.MainnetGethArguments
 	case Testnet:
 		config.Network = &types.NetworkIdentifier{
-			Blockchain: "RSK",
-			Network:    ethereum.TestnetNetwork,
+			Blockchain: rsk.Blockchain,
+			Network:    rsk.TestnetNetwork,
 		}
-		config.GenesisBlockIdentifier = ethereum.TestnetGenesisBlockIdentifier
-		config.Params = params.RopstenChainConfig
-		config.GethArguments = ethereum.TestnetGethArguments
+		config.GenesisBlockIdentifier = rsk.TestnetGenesisBlockIdentifier
+		config.ChainID = rsk.TestnetChainID
+		config.GethArguments = rsk.TestnetGethArguments
 	case "":
 		return nil, errors.New("NETWORK must be populated")
 	default:
 		return nil, fmt.Errorf("%s is not a valid network", networkValue)
 	}
 
-	config.GethURL = DefaultGethURL
-	envGethURL := os.Getenv(GethEnv)
+	config.GethURL = DefaultRskjURL
+	envGethURL := os.Getenv(RskjEnv)
 	if len(envGethURL) > 0 {
 		config.RemoteGeth = true
 		config.GethURL = envGethURL

@@ -54,7 +54,7 @@ a data directory at `<working directory>/rsk-data` and the Rosetta API accessibl
 at port `8080`.
 
 _It is possible to run `rosetta-rsk` using a remote node by adding
-`-e "GETH=<node url>"` to any online command._
+`-e "RSKJ=<node url>"` to any online command._
 
 #### Mainnet:Online
 ```text
@@ -64,7 +64,7 @@ _If you cloned the repository, you can run `make run-mainnet-online`._
 
 #### Mainnet:Online (Remote)
 ```text
-docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -e "GETH=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
+docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -e "RSKJ=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
 ```
 _If you cloned the repository, you can run `make run-mainnet-remote geth=<NODE URL>`._
 
@@ -82,9 +82,9 @@ _If you cloned the repository, you can run `make run-testnet-online`._
 
 #### Testnet:Online (Remote)
 ```text
-docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "GETH=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
+docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "RSKJ=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
 ```
-_If you cloned the repository, you can run `make run-testnet-remote geth=<NODE URL>`._
+_If you cloned the repository, you can run `make run-testnet-remote rskj=<NODE URL>`._
 
 #### Testnet:Offline
 ```text

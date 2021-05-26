@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ethereum
+package rsk
 
 import (
 	"context"
@@ -29,9 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"golang.org/x/sync/semaphore"
@@ -51,14 +49,13 @@ const (
 //
 // Client borrows HEAVILY from https://github.com/ethereum/go-ethereum/tree/master/ethclient.
 type Client struct {
-	p              *params.ChainConfig
-	tc             *eth.TraceConfig
+	chainID        *big.Int
 	c              JSONRPC
 	traceSemaphore *semaphore.Weighted
 }
 
-// NewClient creates a Client that from the provided url and params.
-func NewClient(url string, params *params.ChainConfig) (*Client, error) {
+// NewClient creates a Client that from the provided url and chain ID.
+func NewClient(url string, chainID *big.Int) (*Client, error) {
 	c, err := rpc.DialHTTPWithClient(url, &http.Client{
 		Timeout: gethHTTPTimeout,
 	})
@@ -66,12 +63,7 @@ func NewClient(url string, params *params.ChainConfig) (*Client, error) {
 		return nil, fmt.Errorf("%w: unable to dial node", err)
 	}
 
-	tc, err := loadTraceConfig()
-	if err != nil {
-		return nil, fmt.Errorf("%w: unable to load trace config", err)
-	}
-
-	return &Client{params, tc, c, semaphore.NewWeighted(maxTraceConcurrency)}, nil
+	return &Client{chainID, c, semaphore.NewWeighted(maxTraceConcurrency)}, nil
 }
 
 // Close shuts down the RPC client connection.

@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ethereum
+package rsk
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"math/big"
 	"testing"
@@ -30,9 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/sync/semaphore"
@@ -427,28 +424,12 @@ func TestCall_InvalidMethod(t *testing.T) {
 	mockJSONRPC.AssertExpectations(t)
 }
 
-func testTraceConfig() (*eth.TraceConfig, error) {
-	loadedFile, err := ioutil.ReadFile("call_tracer.js")
-	if err != nil {
-		return nil, fmt.Errorf("%w: could not load tracer file", err)
-	}
-
-	loadedTracer := string(loadedFile)
-	return &eth.TraceConfig{
-		Timeout: &tracerTimeout,
-		Tracer:  &loadedTracer,
-	}, nil
-}
-
 func TestBlock_Current(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 
-	tc, err := testTraceConfig()
-	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		tc:             tc,
-		p:              params.RopstenChainConfig,
+		chainID:        TestnetChainID,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -490,12 +471,9 @@ func TestBlock_Current(t *testing.T) {
 
 func TestBlock_Hash(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	tc, err := testTraceConfig()
-	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		tc:             tc,
-		p:              params.RopstenChainConfig,
+		chainID:        TestnetChainID,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -541,12 +519,9 @@ func TestBlock_Hash(t *testing.T) {
 
 func TestBlock_Index(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	tc, err := testTraceConfig()
-	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		tc:             tc,
-		p:              params.RopstenChainConfig,
+		chainID:        TestnetChainID,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
@@ -605,12 +580,9 @@ func jsonifyBlock(b *RosettaTypes.Block) (*RosettaTypes.Block, error) {
 // Block with transactions
 func TestBlock_10994(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
-	tc, err := testTraceConfig()
-	assert.NoError(t, err)
 	c := &Client{
 		c:              mockJSONRPC,
-		tc:             tc,
-		p:              params.RopstenChainConfig,
+		chainID:        TestnetChainID,
 		traceSemaphore: semaphore.NewWeighted(100),
 	}
 

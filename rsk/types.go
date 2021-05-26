@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ethereum
+package rsk
 
 import (
 	"context"
 	"fmt"
-
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
 )
 
 const (
-	// NodeVersion is the version of geth we are using.
-	NodeVersion = "1.9.24"
+	// NodeVersion is the version of rskj we are using.
+	NodeVersion = "2.2.0"
 
 	// Blockchain is RSK.
 	Blockchain string = "RSK"
@@ -40,7 +39,7 @@ const (
 
 	// Symbol is the symbol value
 	// used in Currency.
-	Symbol = "ETH"
+	Symbol = "RBTC"
 
 	// Decimals is the decimals value
 	// used in Currency.
@@ -95,14 +94,6 @@ const (
 	// historical balance is supported.
 	HistoricalBalanceSupported = true
 
-	// UnclesRewardMultiplier is the uncle reward
-	// multiplier.
-	UnclesRewardMultiplier = 32
-
-	// MaxUncleDepth is the maximum depth for
-	// an uncle to be rewarded.
-	MaxUncleDepth = 1
-
 	// GenesisBlockIndex is the index of the
 	// genesis block.
 	GenesisBlockIndex = int64(0)
@@ -134,16 +125,20 @@ var (
 	// MainnetGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the mainnet genesis block.
 	MainnetGenesisBlockIdentifier = &types.BlockIdentifier{
-		Hash:  params.MainnetGenesisHash.Hex(),
+		Hash:  "0xf88529d4ab262c0f4d042e9d8d3f2472848eaafe1a9b7213f57617eb40a9f9e0",
 		Index: GenesisBlockIndex,
 	}
+
+	MainnetChainID = big.NewInt(30)
 
 	// TestnetGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the testnet genesis block.
 	TestnetGenesisBlockIdentifier = &types.BlockIdentifier{
-		Hash:  params.RopstenGenesisHash.Hex(),
+		Hash:  "0xcabb7fbe88cd6d922042a32ffc08ce8b1fbb37d650b9d4e7dbfe2a7469adfa42",
 		Index: GenesisBlockIndex,
 	}
+
+	TestnetChainID = big.NewInt(31)
 
 	// Currency is the *types.Currency for all
 	// Ethereum networks.
@@ -152,7 +147,7 @@ var (
 		Decimals: Decimals,
 	}
 
-	// OperationTypes are all suppoorted operation types.
+	// OperationTypes are all supported operation types.
 	OperationTypes = []string{
 		MinerRewardOpType,
 		UncleRewardOpType,
