@@ -37,14 +37,6 @@ const (
 	// in TestnetNetworkIdentifier.
 	TestnetNetwork string = "Testnet"
 
-	// Symbol is the symbol value
-	// used in Currency.
-	Symbol = "RBTC"
-
-	// Decimals is the decimals value
-	// used in Currency.
-	Decimals = 18
-
 	// MinerRewardOpType is used to describe
 	// a miner block reward.
 	MinerRewardOpType = "MINER_REWARD"
@@ -140,11 +132,27 @@ var (
 
 	TestnetChainID = big.NewInt(31)
 
-	// Currency is the *types.Currency for all
+	// DefaultCurrency is the *types.Currency for all
 	// Ethereum networks.
-	Currency = &types.Currency{
-		Symbol:   Symbol,
-		Decimals: Decimals,
+	DefaultCurrency = &types.Currency{
+		Symbol:   "RBTC",
+		Decimals: 18,
+	}
+
+	// TODO: rename to AlternativeCurrencies when JSON-RPC to obtain their balances appear.
+	_ = []*types.Currency{
+		{
+			Symbol:   "RIF",
+			Decimals: 18,
+		},
+		{
+			Symbol:   "RDOC",
+			Decimals: 18,
+		},
+		{
+			Symbol:   "DOC",
+			Decimals: 18,
+		},
 	}
 
 	// OperationTypes are all supported operation types.

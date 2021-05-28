@@ -133,7 +133,7 @@ func TestConstructionService(t *testing.T) {
 		SuggestedFee: []*types.Amount{
 			{
 				Value:    "21000000000000",
-				Currency: rsk.Currency,
+				Currency: rsk.DefaultCurrency,
 			},
 		},
 	}, metadataResponse)

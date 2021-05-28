@@ -83,7 +83,7 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 				Amount: &parser.AmountDescription{
 					Exists:   true,
 					Sign:     parser.NegativeAmountSign,
-					Currency: rsk.Currency,
+					Currency: rsk.DefaultCurrency,
 				},
 			},
 			{
@@ -94,7 +94,7 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 				Amount: &parser.AmountDescription{
 					Exists:   true,
 					Sign:     parser.PositiveAmountSign,
-					Currency: rsk.Currency,
+					Currency: rsk.DefaultCurrency,
 				},
 			},
 		},
@@ -178,7 +178,7 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 		SuggestedFee: []*types.Amount{
 			{
 				Value:    strconv.FormatInt(suggestedFee, 10),
-				Currency: rsk.Currency,
+				Currency: rsk.DefaultCurrency,
 			},
 		},
 	}, nil
@@ -199,7 +199,7 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 				Amount: &parser.AmountDescription{
 					Exists:   true,
 					Sign:     parser.NegativeAmountSign,
-					Currency: rsk.Currency,
+					Currency: rsk.DefaultCurrency,
 				},
 			},
 			{
@@ -210,7 +210,7 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 				Amount: &parser.AmountDescription{
 					Exists:   true,
 					Sign:     parser.PositiveAmountSign,
-					Currency: rsk.Currency,
+					Currency: rsk.DefaultCurrency,
 				},
 			},
 		},
@@ -406,7 +406,7 @@ func (s *ConstructionAPIService) ConstructionParse(
 			},
 			Amount: &types.Amount{
 				Value:    new(big.Int).Neg(tx.Value).String(),
-				Currency: rsk.Currency,
+				Currency: rsk.DefaultCurrency,
 			},
 		},
 		{
@@ -424,7 +424,7 @@ func (s *ConstructionAPIService) ConstructionParse(
 			},
 			Amount: &types.Amount{
 				Value:    tx.Value.String(),
-				Currency: rsk.Currency,
+				Currency: rsk.DefaultCurrency,
 			},
 		},
 	}
