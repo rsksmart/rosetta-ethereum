@@ -19,7 +19,7 @@ import (
 	"errors"
 
 	"github.com/rsksmart/rosetta-rsk/configuration"
-	"github.com/rsksmart/rosetta-rsk/ethereum"
+	"github.com/rsksmart/rosetta-rsk/rsk"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -48,17 +48,17 @@ func (s *CallAPIService) Call(
 	}
 
 	response, err := s.client.Call(ctx, request)
-	if errors.Is(err, ethereum.ErrCallParametersInvalid) {
+	if errors.Is(err, rsk.ErrCallParametersInvalid) {
 		return nil, wrapErr(ErrCallParametersInvalid, err)
 	}
-	if errors.Is(err, ethereum.ErrCallOutputMarshal) {
+	if errors.Is(err, rsk.ErrCallOutputMarshal) {
 		return nil, wrapErr(ErrCallOutputMarshal, err)
 	}
-	if errors.Is(err, ethereum.ErrCallMethodInvalid) {
+	if errors.Is(err, rsk.ErrCallMethodInvalid) {
 		return nil, wrapErr(ErrCallMethodInvalid, err)
 	}
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrRskj, err)
 	}
 
 	return response, nil

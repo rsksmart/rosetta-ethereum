@@ -19,10 +19,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/rsksmart/rosetta-rsk/ethereum"
+	"github.com/rsksmart/rosetta-rsk/rsk"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,14 +54,14 @@ func TestLoadConfiguration(t *testing.T) {
 			cfg: &Configuration{
 				Mode: Online,
 				Network: &types.NetworkIdentifier{
-					Network:    ethereum.MainnetNetwork,
-					Blockchain: ethereum.Blockchain,
+					Network:    rsk.MainnetNetwork,
+					Blockchain: rsk.Blockchain,
 				},
-				Params:                 params.MainnetChainConfig,
-				GenesisBlockIdentifier: ethereum.MainnetGenesisBlockIdentifier,
+				ChainID:                rsk.MainnetChainID,
+				GenesisBlockIdentifier: rsk.MainnetGenesisBlockIdentifier,
 				Port:                   1000,
-				GethURL:                DefaultGethURL,
-				GethArguments:          ethereum.MainnetGethArguments,
+				GethURL:                DefaultRskjURL,
+				GethArguments:          rsk.MainnetGethArguments,
 			},
 		},
 		"all set (mainnet) + geth": {
@@ -73,15 +72,15 @@ func TestLoadConfiguration(t *testing.T) {
 			cfg: &Configuration{
 				Mode: Online,
 				Network: &types.NetworkIdentifier{
-					Network:    ethereum.MainnetNetwork,
-					Blockchain: ethereum.Blockchain,
+					Network:    rsk.MainnetNetwork,
+					Blockchain: rsk.Blockchain,
 				},
-				Params:                 params.MainnetChainConfig,
-				GenesisBlockIdentifier: ethereum.MainnetGenesisBlockIdentifier,
+				ChainID:                rsk.MainnetChainID,
+				GenesisBlockIdentifier: rsk.MainnetGenesisBlockIdentifier,
 				Port:                   1000,
 				GethURL:                "http://blah",
 				RemoteGeth:             true,
-				GethArguments:          ethereum.MainnetGethArguments,
+				GethArguments:          rsk.MainnetGethArguments,
 			},
 		},
 		"all set (testnet)": {
@@ -91,14 +90,14 @@ func TestLoadConfiguration(t *testing.T) {
 			cfg: &Configuration{
 				Mode: Online,
 				Network: &types.NetworkIdentifier{
-					Network:    ethereum.TestnetNetwork,
-					Blockchain: ethereum.Blockchain,
+					Network:    rsk.TestnetNetwork,
+					Blockchain: rsk.Blockchain,
 				},
-				Params:                 params.RopstenChainConfig,
-				GenesisBlockIdentifier: ethereum.TestnetGenesisBlockIdentifier,
+				ChainID:                rsk.TestnetChainID,
+				GenesisBlockIdentifier: rsk.TestnetGenesisBlockIdentifier,
 				Port:                   1000,
-				GethURL:                DefaultGethURL,
-				GethArguments:          ethereum.TestnetGethArguments,
+				GethURL:                DefaultRskjURL,
+				GethArguments:          rsk.TestnetGethArguments,
 			},
 		},
 		"invalid mode": {
@@ -126,7 +125,7 @@ func TestLoadConfiguration(t *testing.T) {
 			os.Setenv(ModeEnv, test.Mode)
 			os.Setenv(NetworkEnv, test.Network)
 			os.Setenv(PortEnv, test.Port)
-			os.Setenv(GethEnv, test.Geth)
+			os.Setenv(RskjEnv, test.Geth)
 
 			cfg, err := LoadConfiguration()
 			if test.err != nil {

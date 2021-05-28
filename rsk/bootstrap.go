@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ethereum
+package rsk
 
 import (
 	"fmt"
@@ -71,7 +71,7 @@ func GenerateBootstrapFile(genesisFile string, outputFile string) error {
 				Address: k,
 			},
 			Value:    bal.String(),
-			Currency: Currency,
+			Currency: DefaultCurrency,
 		})
 	}
 
