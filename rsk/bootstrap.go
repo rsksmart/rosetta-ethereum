@@ -71,7 +71,7 @@ func GenerateBootstrapFile(genesisFile string, outputFile string) error {
 				Address: k,
 			},
 			Value:    bal.String(),
-			Currency: Currency,
+			Currency: DefaultCurrency,
 		})
 	}
 

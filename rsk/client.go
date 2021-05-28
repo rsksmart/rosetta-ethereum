@@ -22,6 +22,8 @@ import (
 	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	RosettaTypes "github.com/coinbase/rosetta-sdk-go/types"
@@ -38,9 +40,19 @@ import (
 const (
 	gethHTTPTimeout = 120 * time.Second
 
-	maxTraceConcurrency  = int64(16) // nolint:gomnd
-	HexadecimalBitSize   = 64
-	HexadecimalBase      = 0
+	maxTraceConcurrency            = int64(16) // nolint:gomnd
+	HexadecimalBitSize             = 64
+	HexadecimalBase                = 0
+	LatestBlockNumber              = "latest"
+	EthGetBlockByNumberMethod      = "eth_getBlockByNumber"
+	EthGetBlockByHashMethod        = "eth_getBlockByHash"
+	EthGetTransactionCountMethod   = "eth_getTransactionCount"
+	EthGasPriceMethod              = "eth_gasPrice"
+	EthSendRawTransactionMethod    = "eth_sendRawTransaction"
+	EthGetCodeMethod               = "eth_getCode"
+	EthGetTransactionReceiptMethod = "eth_getTransactionReceipt"
+	EthSyncingMethod               = "eth_syncing"
+	EthGetBalanceMethod            = "eth_getBalance"
 )
 
 // Client allows for querying a set of specific Ethereum endpoints in an
@@ -51,7 +63,7 @@ const (
 type Client struct {
 	chainID        *big.Int
 	c              JSONRPC
-	traceSemaphore *semaphore.Weighted
+	traceSemaphore *semaphore.Weighted // TODO: delete if won't use traces.
 }
 
 // NewClient creates a Client that from the provided url and chain ID.
@@ -120,7 +132,7 @@ func (ec *Client) Status(ctx context.Context) (
 // nil, the latest known header is returned.
 func (ec *Client) blockHeader(ctx context.Context, number *big.Int) (*types.Header, error) {
 	var head *types.Header
-	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", toBlockNumArg(number), false)
+	err := ec.c.CallContext(ctx, &head, EthGetBlockByNumberMethod, toBlockNumArg(number), false)
 	if err == nil && head == nil {
 		return nil, ethereum.NotFound
 	}
@@ -136,7 +148,7 @@ func convertTime(time uint64) int64 {
 // This is the nonce that should be used for the next transaction.
 func (ec *Client) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
 	var result hexutil.Uint64
-	err := ec.c.CallContext(ctx, &result, "eth_getTransactionCount", account, "pending")
+	err := ec.c.CallContext(ctx, &result, EthGetTransactionCountMethod, account, "pending")
 	return uint64(result), err
 }
 
@@ -144,7 +156,7 @@ func (ec *Client) PendingNonceAt(ctx context.Context, account common.Address) (u
 // execution of a transaction.
 func (ec *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	var hex hexutil.Big
-	if err := ec.c.CallContext(ctx, &hex, "eth_gasPrice"); err != nil {
+	if err := ec.c.CallContext(ctx, &hex, EthGasPriceMethod); err != nil {
 		return nil, err
 	}
 	return (*big.Int)(&hex), nil
@@ -183,7 +195,7 @@ func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) er
 	if err != nil {
 		return err
 	}
-	return ec.c.CallContext(ctx, nil, "eth_sendRawTransaction", hexutil.Encode(data))
+	return ec.c.CallContext(ctx, nil, EthSendRawTransactionMethod, hexutil.Encode(data))
 }
 
 func toBlockNumArg(number *big.Int) string {
@@ -206,20 +218,20 @@ func (ec *Client) Block(
 ) (*RosettaTypes.Block, error) {
 	if blockIdentifier != nil {
 		if blockIdentifier.Hash != nil {
-			block, err := ec.getParsedBlock(ctx, "eth_getBlockByHash", *blockIdentifier.Hash, true)
+			block, err := ec.getParsedBlock(ctx, EthGetBlockByHashMethod, *blockIdentifier.Hash, true)
 			return block, err
 		}
 		if blockIdentifier.Index != nil {
 			block, err := ec.getParsedBlock(
 				ctx,
-				"eth_getBlockByNumber",
+				EthGetBlockByNumberMethod,
 				toBlockNumArg(big.NewInt(*blockIdentifier.Index)),
 				true,
 			)
 			return block, err
 		}
 	}
-	block, err := ec.getParsedBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(nil), true)
+	block, err := ec.getParsedBlock(ctx, EthGetBlockByNumberMethod, toBlockNumArg(nil), true)
 	return block, err
 }
 
@@ -328,7 +340,7 @@ func (ec *Client) determineRskTransactionType(ctx context.Context, rskBlockNumbe
 		return RskBridgeTransactionType, nil
 	} else {
 		var rawResponse json.RawMessage
-		err := ec.c.CallContext(ctx, &rawResponse, "eth_getCode", rskTransaction.DestinationAddress, rskBlockNumber)
+		err := ec.c.CallContext(ctx, &rawResponse, EthGetCodeMethod, rskTransaction.DestinationAddress, rskBlockNumber)
 		if err != nil {
 			return "", fmt.Errorf("%w: failed to get code for block's destination address", err)
 		}
@@ -432,7 +444,7 @@ func (ec *Client) transactionReceipt(
 	txHash common.Hash,
 ) (*types.Receipt, error) {
 	var r *types.Receipt
-	err := ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
+	err := ec.c.CallContext(ctx, &r, EthGetTransactionReceiptMethod, txHash)
 	if err == nil {
 		if r == nil {
 			return nil, ethereum.NotFound
@@ -454,7 +466,7 @@ type rpcProgress struct {
 // no sync currently running, it returns nil.
 func (ec *Client) syncProgress(ctx context.Context) (*ethereum.SyncProgress, error) {
 	var raw json.RawMessage
-	if err := ec.c.CallContext(ctx, &raw, "eth_syncing"); err != nil {
+	if err := ec.c.CallContext(ctx, &raw, EthSyncingMethod); err != nil {
 		return nil, err
 	}
 
@@ -479,13 +491,145 @@ func (ec *Client) syncProgress(ctx context.Context) (*ethereum.SyncProgress, err
 
 // Balance returns the balance of a *RosettaTypes.AccountIdentifier
 // at a *RosettaTypes.PartialBlockIdentifier.
-// TODO: use eth_getBalance using blockHash (ethereum uses graphQL since their eth_getBalance apparently doesn't support blockHash filtering).
 func (ec *Client) Balance(
 	ctx context.Context,
 	account *RosettaTypes.AccountIdentifier,
 	block *RosettaTypes.PartialBlockIdentifier,
+	currencies []*RosettaTypes.Currency,
 ) (*RosettaTypes.AccountBalanceResponse, error) {
-	return nil, errors.New("not implemented for JSON-RPC yet")
+
+	if currencies == nil || len(currencies) == 0 {
+		currencies = []*RosettaTypes.Currency{DefaultCurrency}
+	}
+
+	accountBalanceResponse := &RosettaTypes.AccountBalanceResponse{
+		Balances: []*RosettaTypes.Amount{},
+	}
+
+	blockIdentifier, err := ec.getBlockIdentifierForAccountBalance(ctx, block)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to obtain block identifier", err)
+	}
+
+	balanceChannel := make(chan *RosettaTypes.Amount, len(currencies))
+	errorChannel := make(chan error, len(currencies))
+	var wg sync.WaitGroup
+
+	for _, currency := range currencies {
+		wg.Add(1)
+		go ec.processBalanceForCurrency(ctx, account, blockIdentifier, currency, balanceChannel, errorChannel, &wg)
+	}
+
+	wg.Wait()
+	close(balanceChannel)
+	close(errorChannel)
+
+	select {
+	case err, errorOccurred := <-errorChannel:
+		if errorOccurred {
+			return nil, err
+		}
+	}
+
+	for balance := range balanceChannel {
+		accountBalanceResponse.Balances = append(accountBalanceResponse.Balances, balance)
+	}
+	accountBalanceResponse.BlockIdentifier = blockIdentifier
+
+	return accountBalanceResponse, nil
+}
+
+func (ec *Client) processBalanceForCurrency(ctx context.Context, account *RosettaTypes.AccountIdentifier,
+	blockIdentifier *RosettaTypes.BlockIdentifier, currency *RosettaTypes.Currency,
+	balanceChannel chan<- *RosettaTypes.Amount, errorChannel chan<- error, wg *sync.WaitGroup) {
+
+	defer wg.Done()
+
+	// TODO: assert currency symbol and decimals match when alternative currencies are supported.
+	if currency.Symbol == "" || currency.Symbol != DefaultCurrency.Symbol {
+		errorChannel <- errors.New("account balance for alternative currencies is not yet supported")
+		return
+	}
+
+	balance, err := ec.getAccountBalanceForDefaultCurrency(ctx, account, blockIdentifier)
+	if err != nil {
+		errorChannel <- fmt.Errorf("%w: failed to get account balance for default currency", err)
+		return
+	}
+	balanceChannel <- balance
+}
+
+func (ec *Client) getAccountBalanceForDefaultCurrency(ctx context.Context, account *RosettaTypes.AccountIdentifier,
+	blockIdentifier *RosettaTypes.BlockIdentifier) (*RosettaTypes.Amount, error) {
+	var stringifiedBalanceValue string
+	blockIndexHex := fmt.Sprintf("0x%x", blockIdentifier.Index)
+	accountAddress := account.Address
+	stringifiedBalanceValue, err := ec.getStringifiedAccountBalanceForBlock(ctx, blockIndexHex, accountAddress)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to get account balance", err)
+	}
+	balance := &RosettaTypes.Amount{
+		Value:    stringifiedBalanceValue,
+		Currency: DefaultCurrency,
+	}
+	return balance, nil
+}
+
+func (ec *Client) getStringifiedAccountBalanceForBlock(ctx context.Context, blockIndexHex string, accountAddress string) (string, error) {
+	var rawResponse json.RawMessage
+	err := ec.c.CallContext(ctx, &rawResponse, EthGetBalanceMethod, accountAddress, blockIndexHex)
+	if err != nil {
+		return "", fmt.Errorf("%w: failed to get balance for address %s and block %s", err, accountAddress, blockIndexHex)
+	}
+	if rawResponse != nil {
+		var response string
+		err := json.Unmarshal(rawResponse, &response)
+		if err != nil {
+			return "", fmt.Errorf("%w: failed to unmarshal response for eth_getBalance", err)
+		}
+		response = strings.Replace(response, "0x", "", -1)
+		balanceValue, err := strconv.ParseInt(response, 16, 64)
+		if err != nil {
+			return "", fmt.Errorf("%w: failed to parse response for eth_getBalance", err)
+		}
+		return strconv.FormatInt(balanceValue, 10), nil
+	}
+	return "", fmt.Errorf("got empty response in eth_getBalance for address %s and block %s", accountAddress, blockIndexHex)
+}
+
+func (ec *Client) getBlockIdentifierForAccountBalance(ctx context.Context, partialBlockIdentifier *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.BlockIdentifier, error) {
+	if partialBlockIdentifier != nil && partialBlockIdentifier.Hash != nil && partialBlockIdentifier.Index != nil {
+		return &RosettaTypes.BlockIdentifier{
+			Index: *partialBlockIdentifier.Index,
+			Hash:  *partialBlockIdentifier.Hash,
+		}, nil
+	}
+	if partialBlockIdentifier != nil && partialBlockIdentifier.Hash != nil {
+		return ec.buildBlockIdentifierFromBlockHash(ctx, partialBlockIdentifier)
+	}
+	return ec.buildBlockIdentifierFromBlockNumber(ctx, partialBlockIdentifier)
+}
+
+func (ec *Client) buildBlockIdentifierFromBlockHash(ctx context.Context, partialBlockIdentifier *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.BlockIdentifier, error) {
+	block, err := ec.getParsedBlock(ctx, EthGetBlockByHashMethod, *partialBlockIdentifier.Hash, true)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to get block by hash (%s)", err, *partialBlockIdentifier.Hash)
+	}
+	return block.BlockIdentifier, nil
+}
+
+func (ec *Client) buildBlockIdentifierFromBlockNumber(ctx context.Context, partialBlockIdentifier *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.BlockIdentifier, error) {
+	var stringifiedBlockNumber string
+	if partialBlockIdentifier != nil && partialBlockIdentifier.Index != nil {
+		stringifiedBlockNumber = toBlockNumArg(big.NewInt(*partialBlockIdentifier.Index))
+	} else {
+		stringifiedBlockNumber = LatestBlockNumber
+	}
+	block, err := ec.getParsedBlock(ctx, EthGetBlockByNumberMethod, stringifiedBlockNumber, true)
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to get block by number (%s)", err, stringifiedBlockNumber)
+	}
+	return block.BlockIdentifier, nil
 }
 
 // GetTransactionReceiptInput is the input to the call
@@ -500,7 +644,7 @@ func (ec *Client) Call(
 	request *RosettaTypes.CallRequest,
 ) (*RosettaTypes.CallResponse, error) {
 	switch request.Method { // nolint:gocritic
-	case "eth_getTransactionReceipt":
+	case EthGetTransactionReceiptMethod:
 		var input GetTransactionReceiptInput
 		if err := RosettaTypes.UnmarshalMap(request.Parameters, &input); err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrCallParametersInvalid, err.Error())

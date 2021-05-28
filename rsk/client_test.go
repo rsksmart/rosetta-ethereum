@@ -35,6 +35,14 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+var (
+	unsupportedCurrency = &RosettaTypes.Currency{
+		Symbol:   "UNSUPPORTED",
+		Decimals: 18,
+	}
+	testError = errors.New("test error")
+)
+
 func TestStatus_NotReady(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
@@ -301,23 +309,359 @@ func TestStatus_Syncing(t *testing.T) {
 	mockJSONRPC.AssertExpectations(t)
 }
 
-func TestBalance_ReturnsNotImplementedError(t *testing.T) {
+func TestBalance_ReturnsDefaultCurrencyBalanceWhenNoCurrencyOrBlockIdentifierIsPassed(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
-		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
+		c: mockJSONRPC,
 	}
 	ctx := context.Background()
+	blockHexNumber := "0x2af0"
+	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
+	expectedResponse := &RosettaTypes.AccountBalanceResponse{
+		BlockIdentifier: &RosettaTypes.BlockIdentifier{
+			Index: 10992,
+			Hash:  "0x67a12211d26c56a4439b2175b67fb20ad90c2800d1b3d338c8d733ebeb648ac7",
+		},
+		Balances: []*RosettaTypes.Amount{
+			{
+				Value:    "59760731096204670",
+				Currency: DefaultCurrency,
+			},
+		},
+	}
+	mockEthGetBlockLatestBlockNumber(t, mockJSONRPC, ctx)
+	mockSuccessfulEthGetBalanceResponse(t, mockJSONRPC, ctx, address, blockHexNumber)
 
 	resp, err := c.Balance(
 		ctx,
 		&RosettaTypes.AccountIdentifier{
-			Address: "0x4cfc400fed52f9681b42454c2db4b18ab98f8de",
+			Address: address,
+		},
+		nil,
+		nil,
+	)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expectedResponse, resp)
+}
+
+func mockEthGetBlockLatestBlockNumber(t *testing.T, mockJSONRPC *mocks.JSONRPC, ctx context.Context) *mock.Call {
+	return mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		EthGetBlockByNumberMethod,
+		LatestBlockNumber,
+		true,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+			file, err := ioutil.ReadFile("testdata/block_10992.json")
+			assert.NoError(t, err)
+			*r = file
+		},
+	).Once()
+}
+
+func mockEthGetLatestBlockReturnsError(mockJSONRPC *mocks.JSONRPC, ctx context.Context) *mock.Call {
+	return mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		EthGetBlockByNumberMethod,
+		LatestBlockNumber,
+		true,
+	).Return(
+		testError,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+			*r = nil
+		},
+	).Once()
+}
+
+func mockEthGetBlock10992ByHash(t *testing.T, mockJSONRPC *mocks.JSONRPC, ctx context.Context) *mock.Call {
+	return mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		EthGetBlockByHashMethod,
+		"0x67a12211d26c56a4439b2175b67fb20ad90c2800d1b3d338c8d733ebeb648ac7",
+		true,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+			file, err := ioutil.ReadFile("testdata/block_10992.json")
+			assert.NoError(t, err)
+			*r = file
+		},
+	).Once()
+}
+
+func mockEthGetBlock10992ByNumber(t *testing.T, mockJSONRPC *mocks.JSONRPC, ctx context.Context) *mock.Call {
+	return mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		EthGetBlockByNumberMethod,
+		"0x2af0",
+		true,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+			file, err := ioutil.ReadFile("testdata/block_10992.json")
+			assert.NoError(t, err)
+			*r = file
+		},
+	).Once()
+}
+
+func mockSuccessfulEthGetBalanceResponse(t *testing.T, mockJSONRPC *mocks.JSONRPC, ctx context.Context, address string,
+	blockHexNumber string) *mock.Call {
+	return mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		EthGetBalanceMethod,
+		address,
+		blockHexNumber,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+			file, err := ioutil.ReadFile("testdata/rsk_balance_0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d.json")
+			assert.NoError(t, err)
+			*r = file
+		},
+	).Once()
+}
+
+func mockErrorEthGetBalanceResponse(mockJSONRPC *mocks.JSONRPC, ctx context.Context, address string, blockHexNumber string) *mock.Call {
+	return mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		EthGetBalanceMethod,
+		address,
+		blockHexNumber,
+	).Return(
+		testError,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*json.RawMessage)
+			*r = nil
+		},
+	).Once()
+}
+
+func TestBalance_ReturnsDefaultCurrencyBalanceWhenBlockNumberIsPassedButNoCurrencyIsPassed(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	c := &Client{
+		c: mockJSONRPC,
+	}
+	ctx := context.Background()
+	blockHexNumber := "0x2af0"
+	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
+	blockNumber := int64(10992)
+	blockHash := "0x67a12211d26c56a4439b2175b67fb20ad90c2800d1b3d338c8d733ebeb648ac7"
+	expectedResponse := &RosettaTypes.AccountBalanceResponse{
+		BlockIdentifier: &RosettaTypes.BlockIdentifier{
+			Index: blockNumber,
+			Hash:  blockHash,
+		},
+		Balances: []*RosettaTypes.Amount{
+			{
+				Value:    "59760731096204670",
+				Currency: DefaultCurrency,
+			},
+		},
+	}
+	mockEthGetBlock10992ByNumber(t, mockJSONRPC, ctx)
+	mockSuccessfulEthGetBalanceResponse(t, mockJSONRPC, ctx, address, blockHexNumber)
+
+	resp, err := c.Balance(
+		ctx,
+		&RosettaTypes.AccountIdentifier{
+			Address: address,
+		},
+		&RosettaTypes.PartialBlockIdentifier{
+			Index: &blockNumber,
 		},
 		nil,
 	)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expectedResponse, resp)
+}
+
+func TestBalance_ReturnsDefaultCurrencyBalanceWhenBlockHashIsPassedButNoCurrencyIsPassed(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	c := &Client{
+		c: mockJSONRPC,
+	}
+	ctx := context.Background()
+	blockHexNumber := "0x2af0"
+	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
+	blockNumber := int64(10992)
+	blockHash := "0x67a12211d26c56a4439b2175b67fb20ad90c2800d1b3d338c8d733ebeb648ac7"
+	expectedResponse := &RosettaTypes.AccountBalanceResponse{
+		BlockIdentifier: &RosettaTypes.BlockIdentifier{
+			Index: blockNumber,
+			Hash:  blockHash,
+		},
+		Balances: []*RosettaTypes.Amount{
+			{
+				Value:    "59760731096204670",
+				Currency: DefaultCurrency,
+			},
+		},
+	}
+	mockEthGetBlock10992ByHash(t, mockJSONRPC, ctx)
+	mockSuccessfulEthGetBalanceResponse(t, mockJSONRPC, ctx, address, blockHexNumber)
+
+	resp, err := c.Balance(
+		ctx,
+		&RosettaTypes.AccountIdentifier{
+			Address: address,
+		},
+		&RosettaTypes.PartialBlockIdentifier{
+			Hash: &blockHash,
+		},
+		nil,
+	)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expectedResponse, resp)
+}
+
+func TestBalance_ReturnsDefaultCurrencyBalanceWhenFullBlockIdentifierIsPassedButNoCurrencyIsPassed(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	c := &Client{
+		c: mockJSONRPC,
+	}
+	ctx := context.Background()
+	blockHexNumber := "0x2af0"
+	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
+	blockNumber := int64(10992)
+	blockHash := "0x67a12211d26c56a4439b2175b67fb20ad90c2800d1b3d338c8d733ebeb648ac7"
+	expectedResponse := &RosettaTypes.AccountBalanceResponse{
+		BlockIdentifier: &RosettaTypes.BlockIdentifier{
+			Index: blockNumber,
+			Hash:  blockHash,
+		},
+		Balances: []*RosettaTypes.Amount{
+			{
+				Value:    "59760731096204670",
+				Currency: DefaultCurrency,
+			},
+		},
+	}
+	mockEthGetBlock10992ByHash(t, mockJSONRPC, ctx)
+	mockSuccessfulEthGetBalanceResponse(t, mockJSONRPC, ctx, address, blockHexNumber)
+
+	resp, err := c.Balance(
+		ctx,
+		&RosettaTypes.AccountIdentifier{
+			Address: address,
+		},
+		&RosettaTypes.PartialBlockIdentifier{
+			Index: &blockNumber,
+			Hash:  &blockHash,
+		},
+		nil,
+	)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expectedResponse, resp)
+}
+
+func TestBalance_ReturnsErrorWhenNotSupportedCurrenciesAreRequested(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	c := &Client{
+		c: mockJSONRPC,
+	}
+	ctx := context.Background()
+	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
+	expectedErrorMessage := "account balance for alternative currencies is not yet supported"
+	mockEthGetBlockLatestBlockNumber(t, mockJSONRPC, ctx)
+
+	resp, err := c.Balance(
+		ctx,
+		&RosettaTypes.AccountIdentifier{
+			Address: address,
+		},
+		nil,
+		[]*RosettaTypes.Currency{
+			unsupportedCurrency,
+		},
+	)
+
+	assert.NotNil(t, err)
+	assert.Equal(t, expectedErrorMessage, err.Error())
 	assert.Nil(t, resp)
-	assert.Error(t, err)
+}
+
+func TestBalance_ReturnsErrorWhenBlockObtentionFails(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	c := &Client{
+		c: mockJSONRPC,
+	}
+	ctx := context.Background()
+	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
+	expectedErrorMessage := "test error: block fetch failed: failed to get block by number (latest): failed to obtain block identifier"
+	mockEthGetLatestBlockReturnsError(mockJSONRPC, ctx)
+
+	resp, err := c.Balance(
+		ctx,
+		&RosettaTypes.AccountIdentifier{
+			Address: address,
+		},
+		nil,
+		[]*RosettaTypes.Currency{
+			DefaultCurrency,
+		},
+	)
+
+	assert.NotNil(t, err)
+	assert.Equal(t, expectedErrorMessage, err.Error())
+	assert.Nil(t, resp)
+}
+
+func TestBalance_ReturnsErrorWhenAccountBalanceObtentionFails(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	c := &Client{
+		c: mockJSONRPC,
+	}
+	ctx := context.Background()
+	blockHexNumber := "0x2af0"
+	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
+	blockHash := "0x67a12211d26c56a4439b2175b67fb20ad90c2800d1b3d338c8d733ebeb648ac7"
+	expectedErrorMessage := "test error: failed to get balance for address 0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d and block 0x2af0: failed to get account balance: failed to get account balance for default currency"
+	mockEthGetBlock10992ByHash(t, mockJSONRPC, ctx)
+	mockErrorEthGetBalanceResponse(mockJSONRPC, ctx, address, blockHexNumber)
+
+	resp, err := c.Balance(
+		ctx,
+		&RosettaTypes.AccountIdentifier{
+			Address: address,
+		},
+		&RosettaTypes.PartialBlockIdentifier{
+			Hash: &blockHash,
+		},
+		nil,
+	)
+
+	assert.NotNil(t, err)
+	assert.Equal(t, expectedErrorMessage, err.Error())
+	assert.Nil(t, resp)
 }
 
 func TestCall(t *testing.T) {
