@@ -24,7 +24,7 @@ var (
 	Errors = []*types.Error{
 		ErrUnimplemented,
 		ErrUnavailableOffline,
-		ErrGeth,
+		ErrRskj,
 		ErrUnableToDecompressPubkey,
 		ErrUnclearIntent,
 		ErrUnableToParseIntermediateResult,
@@ -52,11 +52,11 @@ var (
 		Message: "Endpoint unavailable offline",
 	}
 
-	// ErrGeth is returned when geth
+	// ErrRskj is returned when rskj
 	// errors on a request.
-	ErrGeth = &types.Error{
+	ErrRskj = &types.Error{
 		Code:    2, //nolint
-		Message: "geth error",
+		Message: "rskj error",
 	}
 
 	// ErrUnableToDecompressPubkey is returned when
@@ -141,7 +141,7 @@ var (
 	// cannot yet serve any queries.
 	ErrGethNotReady = &types.Error{
 		Code:      13, //nolint
-		Message:   "geth not ready",
+		Message:   "rskj not ready",
 		Retriable: true,
 	}
 )

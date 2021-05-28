@@ -18,18 +18,16 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/rsksmart/rosetta-rsk/configuration"
+	mocks "github.com/rsksmart/rosetta-rsk/mocks/services"
+	"github.com/rsksmart/rosetta-rsk/rsk"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"math/big"
 	"testing"
 
-	"github.com/coinbase/rosetta-ethereum/configuration"
-	"github.com/coinbase/rosetta-ethereum/ethereum"
-	mocks "github.com/coinbase/rosetta-ethereum/mocks/services"
-
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func forceHexDecode(t *testing.T, s string) []byte {
@@ -52,14 +50,14 @@ func forceMarshalMap(t *testing.T, i interface{}) map[string]interface{} {
 
 func TestConstructionService(t *testing.T) {
 	networkIdentifier = &types.NetworkIdentifier{
-		Network:    ethereum.TestnetNetwork,
-		Blockchain: ethereum.Blockchain,
+		Network:    rsk.TestnetNetwork,
+		Blockchain: rsk.Blockchain,
 	}
 
 	cfg := &configuration.Configuration{
 		Mode:    configuration.Online,
 		Network: networkIdentifier,
-		Params:  params.RopstenChainConfig,
+		ChainID:  rsk.TestnetChainID,
 	}
 
 	mockClient := &mocks.Client{}
@@ -86,7 +84,7 @@ func TestConstructionService(t *testing.T) {
 	}, deriveResponse)
 
 	// Test Preprocess
-	intent := `[{"operation_identifier":{"index":0},"type":"CALL","account":{"address":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309"},"amount":{"value":"-42894881044106498","currency":{"symbol":"ETH","decimals":18}}},{"operation_identifier":{"index":1},"type":"CALL","account":{"address":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d"},"amount":{"value":"42894881044106498","currency":{"symbol":"ETH","decimals":18}}}]` // nolint
+	intent := `[{"operation_identifier":{"index":0},"type":"CALL","account":{"address":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309"},"amount":{"value":"-42894881044106498","currency":{"symbol":"RBTC","decimals":18}}},{"operation_identifier":{"index":1},"type":"CALL","account":{"address":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d"},"amount":{"value":"42894881044106498","currency":{"symbol":"RBTC","decimals":18}}}]` // nolint
 	var ops []*types.Operation
 	assert.NoError(t, json.Unmarshal([]byte(intent), &ops))
 	preprocessResponse, err := servicer.ConstructionPreprocess(
@@ -135,13 +133,13 @@ func TestConstructionService(t *testing.T) {
 		SuggestedFee: []*types.Amount{
 			{
 				Value:    "21000000000000",
-				Currency: ethereum.Currency,
+				Currency: rsk.DefaultCurrency,
 			},
 		},
 	}, metadataResponse)
 
 	// Test Payloads
-	unsignedRaw := `{"from":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309","to":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d","value":"0x9864aac3510d02","input":"0x","nonce":"0x0","gas_price":"0x3b9aca00","gas":"0x5208","chain_id":"0x3"}` // nolint
+	unsignedRaw := `{"from":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309","to":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d","value":"0x9864aac3510d02","input":"0x","nonce":"0x0","gas_price":"0x3b9aca00","gas":"0x5208","chain_id":"0x1f"}` // nolint
 	payloadsResponse, err := servicer.ConstructionPayloads(ctx, &types.ConstructionPayloadsRequest{
 		NetworkIdentifier: networkIdentifier,
 		Operations:        ops,
@@ -157,7 +155,7 @@ func TestConstructionService(t *testing.T) {
 	}, payloadsResponse)
 
 	// Test Parse Unsigned
-	parseOpsRaw := `[{"operation_identifier":{"index":0},"type":"CALL","account":{"address":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309"},"amount":{"value":"-42894881044106498","currency":{"symbol":"ETH","decimals":18}}},{"operation_identifier":{"index":1},"related_operations":[{"index":0}],"type":"CALL","account":{"address":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d"},"amount":{"value":"42894881044106498","currency":{"symbol":"ETH","decimals":18}}}]` // nolint
+	parseOpsRaw := `[{"operation_identifier":{"index":0},"type":"CALL","account":{"address":"0xe3a5B4d7f79d64088C8d4ef153A7DDe2B2d47309"},"amount":{"value":"-42894881044106498","currency":{"symbol":"RBTC","decimals":18}}},{"operation_identifier":{"index":1},"related_operations":[{"index":0}],"type":"CALL","account":{"address":"0x57B414a0332B5CaB885a451c2a28a07d1e9b8a8d"},"amount":{"value":"42894881044106498","currency":{"symbol":"RBTC","decimals":18}}}]` // nolint
 	var parseOps []*types.Operation
 	assert.NoError(t, json.Unmarshal([]byte(parseOpsRaw), &parseOps))
 	parseUnsignedResponse, err := servicer.ConstructionParse(ctx, &types.ConstructionParseRequest{
@@ -169,7 +167,7 @@ func TestConstructionService(t *testing.T) {
 	parseMetadata := &parseMetadata{
 		Nonce:    metadata.Nonce,
 		GasPrice: metadata.GasPrice,
-		ChainID:  big.NewInt(3),
+		ChainID:  rsk.TestnetChainID,
 	}
 	assert.Equal(t, &types.ConstructionParseResponse{
 		Operations:               parseOps,

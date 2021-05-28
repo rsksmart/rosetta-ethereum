@@ -1,4 +1,4 @@
-module github.com/coinbase/rosetta-ethereum
+module github.com/rsksmart/rosetta-rsk
 
 require (
 	github.com/OneOfOne/xxhash v1.2.5 // indirect

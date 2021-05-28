@@ -22,9 +22,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/coinbase/rosetta-ethereum/configuration"
-	"github.com/coinbase/rosetta-ethereum/ethereum"
-	"github.com/coinbase/rosetta-ethereum/services"
+	"github.com/rsksmart/rosetta-rsk/configuration"
+	"github.com/rsksmart/rosetta-rsk/rsk"
+	"github.com/rsksmart/rosetta-rsk/services"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/server"
@@ -51,7 +51,7 @@ const (
 var (
 	runCmd = &cobra.Command{
 		Use:   "run",
-		Short: "Run rosetta-ethereum",
+		Short: "Run rosetta-rsk",
 		RunE:  runRunCmd,
 	}
 )
@@ -65,11 +65,11 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 	// The asserter automatically rejects incorrectly formatted
 	// requests.
 	asserter, err := asserter.NewServer(
-		ethereum.OperationTypes,
-		ethereum.HistoricalBalanceSupported,
+		rsk.OperationTypes,
+		rsk.HistoricalBalanceSupported,
 		[]*types.NetworkIdentifier{cfg.Network},
-		ethereum.CallMethods,
-		ethereum.IncludeMempoolCoins,
+		rsk.CallMethods,
+		rsk.IncludeMempoolCoins,
 	)
 	if err != nil {
 		return fmt.Errorf("%w: could not initialize server asserter", err)
@@ -82,16 +82,16 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 
 	g, ctx := errgroup.WithContext(ctx)
 
-	var client *ethereum.Client
+	var client *rsk.Client
 	if cfg.Mode == configuration.Online {
 		if !cfg.RemoteGeth {
 			g.Go(func() error {
-				return ethereum.StartGeth(ctx, cfg.GethArguments, g)
+				return rsk.StartGeth(ctx, cfg.GethArguments, g)
 			})
 		}
 
 		var err error
-		client, err = ethereum.NewClient(cfg.GethURL, cfg.Params)
+		client, err = rsk.NewClient(cfg.GethURL, cfg.ChainID)
 		if err != nil {
 			return fmt.Errorf("%w: cannot initialize ethereum client", err)
 		}
@@ -126,7 +126,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 
 	err = g.Wait()
 	if SignalReceived {
-		return errors.New("rosetta-ethereum halted")
+		return errors.New("rosetta-rsk halted")
 	}
 
 	return err

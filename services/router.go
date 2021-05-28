@@ -15,9 +15,8 @@
 package services
 
 import (
+	"github.com/rsksmart/rosetta-rsk/configuration"
 	"net/http"
-
-	"github.com/coinbase/rosetta-ethereum/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
 	"github.com/coinbase/rosetta-sdk-go/server"

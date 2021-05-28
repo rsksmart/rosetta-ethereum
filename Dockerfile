@@ -12,26 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Compile golang 
-FROM ubuntu:18.04 as golang-builder
+# Support golang and necessary base dependencies
+FROM golang:1.15.5-alpine3.12 as golang-builder
 
 RUN mkdir -p /app \
   && chown -R nobody:nogroup /app
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y curl make gcc g++ git
-ENV GOLANG_VERSION 1.15.5
-ENV GOLANG_DOWNLOAD_SHA256 9a58494e8da722c3aef248c9227b0e9c528c7318309827780f16220998180a0d
-ENV GOLANG_DOWNLOAD_URL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz
-
-RUN curl -fsSL "$GOLANG_DOWNLOAD_URL" -o golang.tar.gz \
-  && echo "$GOLANG_DOWNLOAD_SHA256  golang.tar.gz" | sha256sum -c - \
-  && tar -C /usr/local -xzf golang.tar.gz \
-  && rm golang.tar.gz
-
-ENV GOPATH /go
-ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
-RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+RUN apk --no-cache add curl make gcc g++ git linux-headers
 
 # Compile geth
 FROM golang-builder as geth-builder
@@ -47,7 +35,7 @@ RUN cd go-ethereum \
 RUN mv go-ethereum/build/bin/geth /app/geth \
   && rm -rf go-ethereum
 
-# Compile rosetta-ethereum
+# Compile rosetta-rsk
 FROM golang-builder as rosetta-builder
 
 # Use native remote build context to build in any directory
@@ -55,14 +43,14 @@ COPY . src
 RUN cd src \
   && go build
 
-RUN mv src/rosetta-ethereum /app/rosetta-ethereum \
+RUN mv src/rosetta-rsk /app/rosetta-rsk \
   && mkdir /app/ethereum \
   && mv src/ethereum/call_tracer.js /app/ethereum/call_tracer.js \
   && mv src/ethereum/geth.toml /app/ethereum/geth.toml \
   && rm -rf src 
 
 ## Build Final Image
-FROM ubuntu:18.04
+FROM alpine:3.12
 
 RUN mkdir -p /app \
   && chown -R nobody:nogroup /app \
@@ -76,9 +64,9 @@ COPY --from=geth-builder /app/geth /app/geth
 
 # Copy binary from rosetta-builder
 COPY --from=rosetta-builder /app/ethereum /app/ethereum
-COPY --from=rosetta-builder /app/rosetta-ethereum /app/rosetta-ethereum
+COPY --from=rosetta-builder /app/rosetta-rsk /app/rosetta-rsk
 
 # Set permissions for everything added to /app
 RUN chmod -R 755 /app/*
 
-CMD ["/app/rosetta-ethereum", "run"]
+CMD ["/app/rosetta-rsk", "run"]

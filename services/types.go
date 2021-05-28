@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"math/big"
 
+	"fmt"
+
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -45,6 +47,7 @@ type Client interface {
 		context.Context,
 		*types.AccountIdentifier,
 		*types.PartialBlockIdentifier,
+		[]*types.Currency,
 	) (*types.AccountBalanceResponse, error)
 
 	PendingNonceAt(context.Context, common.Address) (uint64, error)
@@ -85,16 +88,21 @@ func (m *metadata) MarshalJSON() ([]byte, error) {
 func (m *metadata) UnmarshalJSON(data []byte) error {
 	var mw metadataWire
 	if err := json.Unmarshal(data, &mw); err != nil {
+		fmt.Println("Error decoding metadataWire")
 		return err
 	}
 
 	nonce, err := hexutil.DecodeUint64(mw.Nonce)
 	if err != nil {
+		fmt.Println("Error decoding Nonce")
 		return err
 	}
 
+	fmt.Println("GasPrice")
+	fmt.Println(mw.GasPrice)
 	gasPrice, err := hexutil.DecodeBig(mw.GasPrice)
 	if err != nil {
+		fmt.Println("Error decoding GasPrice")
 		return err
 	}
 

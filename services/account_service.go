@@ -17,7 +17,7 @@ package services
 import (
 	"context"
 
-	"github.com/coinbase/rosetta-ethereum/configuration"
+	"github.com/rsksmart/rosetta-rsk/configuration"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
@@ -52,9 +52,10 @@ func (s *AccountAPIService) AccountBalance(
 		ctx,
 		request.AccountIdentifier,
 		request.BlockIdentifier,
+		request.Currencies,
 	)
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrRskj, err)
 	}
 
 	return balanceResponse, nil
