@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/rsksmart/rosetta-rsk/configuration"
-	"github.com/rsksmart/rosetta-rsk/ethereum"
+	"github.com/rsksmart/rosetta-rsk/rsk"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -76,25 +76,25 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 	descriptions := &parser.Descriptions{
 		OperationDescriptions: []*parser.OperationDescription{
 			{
-				Type: ethereum.CallOpType,
+				Type: rsk.CallOpType,
 				Account: &parser.AccountDescription{
 					Exists: true,
 				},
 				Amount: &parser.AmountDescription{
 					Exists:   true,
 					Sign:     parser.NegativeAmountSign,
-					Currency: ethereum.Currency,
+					Currency: rsk.DefaultCurrency,
 				},
 			},
 			{
-				Type: ethereum.CallOpType,
+				Type: rsk.CallOpType,
 				Account: &parser.AccountDescription{
 					Exists: true,
 				},
 				Amount: &parser.AmountDescription{
 					Exists:   true,
 					Sign:     parser.PositiveAmountSign,
-					Currency: ethereum.Currency,
+					Currency: rsk.DefaultCurrency,
 				},
 			},
 		},
@@ -112,13 +112,13 @@ func (s *ConstructionAPIService) ConstructionPreprocess(
 	toAdd := toOp.Account.Address
 
 	// Ensure valid from address
-	checkFrom, ok := ethereum.ChecksumAddress(fromAdd)
+	checkFrom, ok := rsk.ChecksumAddress(fromAdd)
 	if !ok {
 		return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("%s is not a valid address", fromAdd))
 	}
 
 	// Ensure valid to address
-	_, ok = ethereum.ChecksumAddress(toAdd)
+	_, ok = rsk.ChecksumAddress(toAdd)
 	if !ok {
 		return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("%s is not a valid address", toAdd))
 	}
@@ -153,11 +153,11 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 
 	nonce, err := s.client.PendingNonceAt(ctx, common.HexToAddress(input.From))
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrRskj, err)
 	}
 	gasPrice, err := s.client.SuggestGasPrice(ctx)
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrRskj, err)
 	}
 
 	metadata := &metadata{
@@ -171,14 +171,14 @@ func (s *ConstructionAPIService) ConstructionMetadata(
 	}
 
 	// Find suggested gas usage
-	suggestedFee := metadata.GasPrice.Int64() * ethereum.TransferGasLimit
+	suggestedFee := metadata.GasPrice.Int64() * rsk.TransferGasLimit
 
 	return &types.ConstructionMetadataResponse{
 		Metadata: metadataMap,
 		SuggestedFee: []*types.Amount{
 			{
 				Value:    strconv.FormatInt(suggestedFee, 10),
-				Currency: ethereum.Currency,
+				Currency: rsk.DefaultCurrency,
 			},
 		},
 	}, nil
@@ -192,25 +192,25 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 	descriptions := &parser.Descriptions{
 		OperationDescriptions: []*parser.OperationDescription{
 			{
-				Type: ethereum.CallOpType,
+				Type: rsk.CallOpType,
 				Account: &parser.AccountDescription{
 					Exists: true,
 				},
 				Amount: &parser.AmountDescription{
 					Exists:   true,
 					Sign:     parser.NegativeAmountSign,
-					Currency: ethereum.Currency,
+					Currency: rsk.DefaultCurrency,
 				},
 			},
 			{
-				Type: ethereum.CallOpType,
+				Type: rsk.CallOpType,
 				Account: &parser.AccountDescription{
 					Exists: true,
 				},
 				Amount: &parser.AmountDescription{
 					Exists:   true,
 					Sign:     parser.PositiveAmountSign,
-					Currency: ethereum.Currency,
+					Currency: rsk.DefaultCurrency,
 				},
 			},
 		},
@@ -232,8 +232,8 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 	toAdd := toOp.Account.Address
 	nonce := metadata.Nonce
 	gasPrice := metadata.GasPrice
-	chainID := s.config.Params.ChainID
-	transferGasLimit := uint64(ethereum.TransferGasLimit)
+	chainID := s.config.ChainID
+	transferGasLimit := uint64(rsk.TransferGasLimit)
 	transferData := []byte{}
 
 	// Additional Fields for constructing custom Ethereum tx struct
@@ -241,13 +241,13 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 	fromAdd := fromOp.Account.Address
 
 	// Ensure valid from address
-	checkFrom, ok := ethereum.ChecksumAddress(fromAdd)
+	checkFrom, ok := rsk.ChecksumAddress(fromAdd)
 	if !ok {
 		return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("%s is not a valid address", fromAdd))
 	}
 
 	// Ensure valid to address
-	checkTo, ok := ethereum.ChecksumAddress(toAdd)
+	checkTo, ok := rsk.ChecksumAddress(toAdd)
 	if !ok {
 		return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("%s is not a valid address", toAdd))
 	}
@@ -274,9 +274,12 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 
 	// Construct SigningPayload
 	signer := ethTypes.NewEIP155Signer(chainID)
+	hash := signer.Hash(tx) // TODO: remove variable
+	hashHex := hash.Hex()
+	fmt.Println(hashHex)
 	payload := &types.SigningPayload{
 		AccountIdentifier: &types.AccountIdentifier{Address: checkFrom},
-		Bytes:             signer.Hash(tx).Bytes(),
+		Bytes:             hash.Bytes(),
 		SignatureType:     types.EcdsaRecovery,
 	}
 
@@ -381,20 +384,20 @@ func (s *ConstructionAPIService) ConstructionParse(
 	}
 
 	// Ensure valid from address
-	checkFrom, ok := ethereum.ChecksumAddress(tx.From)
+	checkFrom, ok := rsk.ChecksumAddress(tx.From)
 	if !ok {
 		return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("%s is not a valid address", tx.From))
 	}
 
 	// Ensure valid to address
-	checkTo, ok := ethereum.ChecksumAddress(tx.To)
+	checkTo, ok := rsk.ChecksumAddress(tx.To)
 	if !ok {
 		return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("%s is not a valid address", tx.To))
 	}
 
 	ops := []*types.Operation{
 		{
-			Type: ethereum.CallOpType,
+			Type: rsk.CallOpType,
 			OperationIdentifier: &types.OperationIdentifier{
 				Index: 0,
 			},
@@ -403,11 +406,11 @@ func (s *ConstructionAPIService) ConstructionParse(
 			},
 			Amount: &types.Amount{
 				Value:    new(big.Int).Neg(tx.Value).String(),
-				Currency: ethereum.Currency,
+				Currency: rsk.DefaultCurrency,
 			},
 		},
 		{
-			Type: ethereum.CallOpType,
+			Type: rsk.CallOpType,
 			OperationIdentifier: &types.OperationIdentifier{
 				Index: 1,
 			},
@@ -421,7 +424,7 @@ func (s *ConstructionAPIService) ConstructionParse(
 			},
 			Amount: &types.Amount{
 				Value:    tx.Value.String(),
-				Currency: ethereum.Currency,
+				Currency: rsk.DefaultCurrency,
 			},
 		},
 	}

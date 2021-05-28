@@ -52,9 +52,10 @@ func (s *AccountAPIService) AccountBalance(
 		ctx,
 		request.AccountIdentifier,
 		request.BlockIdentifier,
+		request.Currencies,
 	)
 	if err != nil {
-		return nil, wrapErr(ErrGeth, err)
+		return nil, wrapErr(ErrRskj, err)
 	}
 
 	return balanceResponse, nil

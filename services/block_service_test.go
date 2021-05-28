@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/rsksmart/rosetta-rsk/configuration"
-	"github.com/rsksmart/rosetta-rsk/ethereum"
+	"github.com/rsksmart/rosetta-rsk/rsk"
 	mocks "github.com/rsksmart/rosetta-rsk/mocks/services"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
@@ -92,7 +92,7 @@ func TestBlockService_Online(t *testing.T) {
 
 	t.Run("orphaned block", func(t *testing.T) {
 		pbIdentifier := types.ConstructPartialBlockIdentifier(block.BlockIdentifier)
-		mockClient.On("Block", ctx, pbIdentifier).Return(nil, ethereum.ErrBlockOrphaned).Once()
+		mockClient.On("Block", ctx, pbIdentifier).Return(nil, rsk.ErrBlockOrphaned).Once()
 		b, err := servicer.Block(ctx, &types.BlockRequest{
 			BlockIdentifier: pbIdentifier,
 		})

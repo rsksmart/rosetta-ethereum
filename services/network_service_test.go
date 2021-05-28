@@ -19,33 +19,33 @@ import (
 	"testing"
 
 	"github.com/rsksmart/rosetta-rsk/configuration"
-	"github.com/rsksmart/rosetta-rsk/ethereum"
 	mocks "github.com/rsksmart/rosetta-rsk/mocks/services"
+	"github.com/rsksmart/rosetta-rsk/rsk"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	middlewareVersion     = "0.0.4"
+	middlewareVersion     = "0.1.0"
 	defaultNetworkOptions = &types.NetworkOptionsResponse{
 		Version: &types.Version{
 			RosettaVersion:    types.RosettaAPIVersion,
-			NodeVersion:       "1.9.24",
+			NodeVersion:       "2.2.0",
 			MiddlewareVersion: &middlewareVersion,
 		},
 		Allow: &types.Allow{
-			OperationStatuses:       ethereum.OperationStatuses,
-			OperationTypes:          ethereum.OperationTypes,
+			OperationStatuses:       rsk.OperationStatuses,
+			OperationTypes:          rsk.OperationTypes,
 			Errors:                  Errors,
-			HistoricalBalanceLookup: ethereum.HistoricalBalanceSupported,
-			CallMethods:             ethereum.CallMethods,
+			HistoricalBalanceLookup: rsk.HistoricalBalanceSupported,
+			CallMethods:             rsk.CallMethods,
 		},
 	}
 
 	networkIdentifier = &types.NetworkIdentifier{
-		Network:    ethereum.MainnetNetwork,
-		Blockchain: ethereum.Blockchain,
+		Network:    rsk.MainnetNetwork,
+		Blockchain: rsk.Blockchain,
 	}
 )
 
@@ -80,7 +80,7 @@ func TestNetworkEndpoints_Online(t *testing.T) {
 	cfg := &configuration.Configuration{
 		Mode:                   configuration.Online,
 		Network:                networkIdentifier,
-		GenesisBlockIdentifier: ethereum.MainnetGenesisBlockIdentifier,
+		GenesisBlockIdentifier: rsk.MainnetGenesisBlockIdentifier,
 	}
 	mockClient := &mocks.Client{}
 	servicer := NewNetworkAPIService(cfg, mockClient)
@@ -122,7 +122,7 @@ func TestNetworkEndpoints_Online(t *testing.T) {
 	networkStatus, err := servicer.NetworkStatus(ctx, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, &types.NetworkStatusResponse{
-		GenesisBlockIdentifier: ethereum.MainnetGenesisBlockIdentifier,
+		GenesisBlockIdentifier: rsk.MainnetGenesisBlockIdentifier,
 		CurrentBlockIdentifier: currentBlock,
 		CurrentBlockTimestamp:  currentTime,
 		Peers:                  peers,

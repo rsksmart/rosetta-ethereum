@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ethereum
+package rsk
 
 import (
 	"context"
 	"fmt"
-
 	"github.com/coinbase/rosetta-sdk-go/types"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"math/big"
 )
 
 const (
-	// NodeVersion is the version of geth we are using.
-	NodeVersion = "1.9.24"
+	// NodeVersion is the version of rskj we are using.
+	NodeVersion = "2.2.0"
 
 	// Blockchain is RSK.
 	Blockchain string = "RSK"
@@ -37,14 +36,6 @@ const (
 	// TestnetNetwork is the value of the network
 	// in TestnetNetworkIdentifier.
 	TestnetNetwork string = "Testnet"
-
-	// Symbol is the symbol value
-	// used in Currency.
-	Symbol = "ETH"
-
-	// Decimals is the decimals value
-	// used in Currency.
-	Decimals = 18
 
 	// MinerRewardOpType is used to describe
 	// a miner block reward.
@@ -95,14 +86,6 @@ const (
 	// historical balance is supported.
 	HistoricalBalanceSupported = true
 
-	// UnclesRewardMultiplier is the uncle reward
-	// multiplier.
-	UnclesRewardMultiplier = 32
-
-	// MaxUncleDepth is the maximum depth for
-	// an uncle to be rewarded.
-	MaxUncleDepth = 1
-
 	// GenesisBlockIndex is the index of the
 	// genesis block.
 	GenesisBlockIndex = int64(0)
@@ -134,25 +117,45 @@ var (
 	// MainnetGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the mainnet genesis block.
 	MainnetGenesisBlockIdentifier = &types.BlockIdentifier{
-		Hash:  params.MainnetGenesisHash.Hex(),
+		Hash:  "0xf88529d4ab262c0f4d042e9d8d3f2472848eaafe1a9b7213f57617eb40a9f9e0",
 		Index: GenesisBlockIndex,
 	}
+
+	MainnetChainID = big.NewInt(30)
 
 	// TestnetGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the testnet genesis block.
 	TestnetGenesisBlockIdentifier = &types.BlockIdentifier{
-		Hash:  params.RopstenGenesisHash.Hex(),
+		Hash:  "0xcabb7fbe88cd6d922042a32ffc08ce8b1fbb37d650b9d4e7dbfe2a7469adfa42",
 		Index: GenesisBlockIndex,
 	}
 
-	// Currency is the *types.Currency for all
+	TestnetChainID = big.NewInt(31)
+
+	// DefaultCurrency is the *types.Currency for all
 	// Ethereum networks.
-	Currency = &types.Currency{
-		Symbol:   Symbol,
-		Decimals: Decimals,
+	DefaultCurrency = &types.Currency{
+		Symbol:   "RBTC",
+		Decimals: 18,
 	}
 
-	// OperationTypes are all suppoorted operation types.
+	// TODO: rename to AlternativeCurrencies when JSON-RPC to obtain their balances appear.
+	_ = []*types.Currency{
+		{
+			Symbol:   "RIF",
+			Decimals: 18,
+		},
+		{
+			Symbol:   "RDOC",
+			Decimals: 18,
+		},
+		{
+			Symbol:   "DOC",
+			Decimals: 18,
+		},
+	}
+
+	// OperationTypes are all supported operation types.
 	OperationTypes = []string{
 		MinerRewardOpType,
 		UncleRewardOpType,

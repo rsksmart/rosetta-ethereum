@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	"github.com/rsksmart/rosetta-rsk/configuration"
-	"github.com/rsksmart/rosetta-rsk/ethereum"
 	mocks "github.com/rsksmart/rosetta-rsk/mocks/services"
+	"github.com/rsksmart/rosetta-rsk/rsk"
 
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/stretchr/testify/assert"
@@ -51,7 +51,7 @@ func TestAccountBalance_Online(t *testing.T) {
 		Mode: configuration.Online,
 	}
 	mockClient := &mocks.Client{}
-	servicer := NewAccountAPIService(cfg, mockClient)
+	service := NewAccountAPIService(cfg, mockClient)
 
 	ctx := context.Background()
 
@@ -64,12 +64,14 @@ func TestAccountBalance_Online(t *testing.T) {
 		Hash:  "block 1000",
 	}
 
+	currencies := []*types.Currency{rsk.DefaultCurrency}
+
 	resp := &types.AccountBalanceResponse{
 		BlockIdentifier: block,
 		Balances: []*types.Amount{
 			{
 				Value:    "25",
-				Currency: ethereum.Currency,
+				Currency: rsk.DefaultCurrency,
 			},
 		},
 	}
@@ -79,16 +81,18 @@ func TestAccountBalance_Online(t *testing.T) {
 		ctx,
 		account,
 		types.ConstructPartialBlockIdentifier(block),
+		currencies,
 	).Return(resp, nil).Once()
 
-	bal, err := servicer.AccountBalance(ctx, &types.AccountBalanceRequest{
+	bal, err := service.AccountBalance(ctx, &types.AccountBalanceRequest{
 		AccountIdentifier: account,
 		BlockIdentifier:   types.ConstructPartialBlockIdentifier(block),
+		Currencies:        currencies,
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, resp, bal)
 
-	coins, err := servicer.AccountCoins(ctx, nil)
+	coins, err := service.AccountCoins(ctx, nil)
 	assert.Nil(t, coins)
 	assert.Equal(t, ErrUnimplemented.Code, err.Code)
 	assert.Equal(t, ErrUnimplemented.Message, err.Message)
