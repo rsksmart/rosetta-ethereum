@@ -18,8 +18,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/big"
+	"strings"
 	"testing"
 
 	mocks "github.com/rsksmart/rosetta-rsk/mocks/ethereum"
@@ -309,7 +311,7 @@ func TestStatus_Syncing(t *testing.T) {
 	mockJSONRPC.AssertExpectations(t)
 }
 
-func TestBalance_ReturnsDefaultCurrencyBalanceWhenNoCurrencyOrBlockIdentifierIsPassed(t *testing.T) {
+func TestBalance_ReturnsAllCurrencyBalancesWhenNoCurrencyOrBlockIdentifierIsPassed(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c: mockJSONRPC,
@@ -324,6 +326,18 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenNoCurrencyOrBlockIdentifierIsP
 		},
 		Balances: []*RosettaTypes.Amount{
 			{
+				Value:    "0",
+				Currency: DOCCurrency,
+			},
+			{
+				Value:    "0",
+				Currency: RIFCurrency,
+			},
+			{
+				Value:    "0",
+				Currency: RDOCCurrency,
+			},
+			{
 				Value:    "59760731096204670",
 				Currency: DefaultCurrency,
 			},
@@ -331,6 +345,9 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenNoCurrencyOrBlockIdentifierIsP
 	}
 	mockEthGetBlockLatestBlockNumber(t, mockJSONRPC, ctx)
 	mockSuccessfulEthGetBalanceResponse(t, mockJSONRPC, ctx, address, blockHexNumber)
+	for tokenSymbol := range AddressByTokenSymbol {
+		mockEmptyEthCallResponse(t, mockJSONRPC, ctx, strings.Replace(address, "0x", "", -1), AddressByTokenSymbol[tokenSymbol])
+	}
 
 	resp, err := c.Balance(
 		ctx,
@@ -361,6 +378,28 @@ func mockEthGetBlockLatestBlockNumber(t *testing.T, mockJSONRPC *mocks.JSONRPC, 
 			file, err := ioutil.ReadFile("testdata/block_10992.json")
 			assert.NoError(t, err)
 			*r = file
+		},
+	).Once()
+}
+
+func mockEmptyEthCallResponse(t *testing.T, mockJSONRPC *mocks.JSONRPC, ctx context.Context, address string,
+	contractAddress string) *mock.Call {
+	return mockJSONRPC.On(
+		"CallContext",
+		ctx,
+		mock.Anything,
+		EthCallMethod,
+		map[string]string{
+			"data": fmt.Sprintf("0x70a08231000000000000000000000000%s", strings.Replace(address, "0x", "", -1)),
+			"to":   contractAddress,
+		},
+		mock.Anything,
+	).Return(
+		nil,
+	).Run(
+		func(args mock.Arguments) {
+			r := args.Get(1).(*string)
+			*r = "0x"
 		},
 	).Once()
 }

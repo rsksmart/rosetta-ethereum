@@ -53,6 +53,7 @@ const (
 	EthGetTransactionReceiptMethod = "eth_getTransactionReceipt"
 	EthSyncingMethod               = "eth_syncing"
 	EthGetBalanceMethod            = "eth_getBalance"
+	EthCallMethod                  = "eth_call"
 )
 
 // Client allows for querying a set of specific Ethereum endpoints in an
@@ -498,8 +499,12 @@ func (ec *Client) Balance(
 	currencies []*RosettaTypes.Currency,
 ) (*RosettaTypes.AccountBalanceResponse, error) {
 
+	err := ec.validateRequestCurrencies(currencies)
+	if err != nil {
+		return nil, fmt.Errorf("%w: error validating request currencies", err)
+	}
 	if currencies == nil || len(currencies) == 0 {
-		currencies = []*RosettaTypes.Currency{DefaultCurrency}
+		currencies = AvailableCurrencies
 	}
 
 	accountBalanceResponse := &RosettaTypes.AccountBalanceResponse{
@@ -539,21 +544,41 @@ func (ec *Client) Balance(
 	return accountBalanceResponse, nil
 }
 
+func (ec *Client) validateRequestCurrencies(currencies []*RosettaTypes.Currency) error {
+	for _, currency := range currencies {
+		if currency.Symbol == DefaultCurrency.Symbol {
+			if currency.Decimals != DefaultCurrency.Decimals {
+				return fmt.Errorf("default currency (%s) uses %d decimals", DefaultCurrency.Symbol, DefaultCurrency.Decimals)
+			}
+			continue
+		}
+		tokenDecimals, isTokenValid := DecimalsByToken[currency.Symbol]
+		if !isTokenValid {
+			return fmt.Errorf("currency %v is not supported", *currency)
+		}
+		if tokenDecimals != currency.Decimals {
+			return fmt.Errorf("token %v uses %d decimals", currency.Symbol, tokenDecimals)
+		}
+	}
+	return nil
+}
+
 func (ec *Client) processBalanceForCurrency(ctx context.Context, account *RosettaTypes.AccountIdentifier,
 	blockIdentifier *RosettaTypes.BlockIdentifier, currency *RosettaTypes.Currency,
 	balanceChannel chan<- *RosettaTypes.Amount, errorChannel chan<- error, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 
-	// TODO: assert currency symbol and decimals match when alternative currencies are supported.
-	if currency.Symbol == "" || currency.Symbol != DefaultCurrency.Symbol {
-		errorChannel <- errors.New("account balance for alternative currencies is not yet supported")
-		return
+	var balance *RosettaTypes.Amount
+	var err error
+	if currency.Symbol == DefaultCurrency.Symbol {
+		balance, err = ec.getAccountBalanceForDefaultCurrency(ctx, account, blockIdentifier)
+	} else {
+		balance, err = ec.getAccountBalanceForToken(ctx, account, blockIdentifier, currency)
 	}
 
-	balance, err := ec.getAccountBalanceForDefaultCurrency(ctx, account, blockIdentifier)
 	if err != nil {
-		errorChannel <- fmt.Errorf("%w: failed to get account balance for default currency", err)
+		errorChannel <- fmt.Errorf("%w: failed to get account balance", err)
 		return
 	}
 	balanceChannel <- balance
@@ -587,14 +612,18 @@ func (ec *Client) getStringifiedAccountBalanceForBlock(ctx context.Context, bloc
 		if err != nil {
 			return "", fmt.Errorf("%w: failed to unmarshal response for eth_getBalance", err)
 		}
-		response = strings.Replace(response, "0x", "", -1)
-		balanceValue, err := strconv.ParseInt(response, 16, 64)
+		balanceValue, err := hexToInt(response)
 		if err != nil {
 			return "", fmt.Errorf("%w: failed to parse response for eth_getBalance", err)
 		}
 		return strconv.FormatInt(balanceValue, 10), nil
 	}
 	return "", fmt.Errorf("got empty response in eth_getBalance for address %s and block %s", accountAddress, blockIndexHex)
+}
+
+func hexToInt(hex string) (int64, error) {
+	hex = strings.Replace(hex, "0x", "", -1)
+	return strconv.ParseInt(hex, 16, HexadecimalBitSize)
 }
 
 func (ec *Client) getBlockIdentifierForAccountBalance(ctx context.Context, partialBlockIdentifier *RosettaTypes.PartialBlockIdentifier) (*RosettaTypes.BlockIdentifier, error) {
@@ -630,6 +659,34 @@ func (ec *Client) buildBlockIdentifierFromBlockNumber(ctx context.Context, parti
 		return nil, fmt.Errorf("%w: failed to get block by number (%s)", err, stringifiedBlockNumber)
 	}
 	return block.BlockIdentifier, nil
+}
+
+func (ec *Client) getAccountBalanceForToken(ctx context.Context, account *RosettaTypes.AccountIdentifier,
+	blockIdentifier *RosettaTypes.BlockIdentifier, currency *RosettaTypes.Currency) (*RosettaTypes.Amount, error) {
+	var response string
+	balanceFunctionParameters := map[string]string{
+		"data": fmt.Sprintf("0x70a08231000000000000000000000000%s", account.Address[2:]),
+		"to":   AddressByTokenSymbol[currency.Symbol],
+	}
+	blockIndexHex := fmt.Sprintf("0x%x", blockIdentifier.Index)
+	err := ec.c.CallContext(ctx, &response, EthCallMethod, balanceFunctionParameters, blockIndexHex)
+	if err != nil {
+		return nil, fmt.Errorf("%w: block fetch failed", err)
+	} else if len(response) == 0 {
+		return nil, errors.New("failed to get block, result was empty")
+	}
+	balanceValue := ec.formatBigHexToDecimalString(response)
+	return &RosettaTypes.Amount{
+		Value:    balanceValue,
+		Currency: currency,
+	}, nil
+}
+
+func (ec *Client) formatBigHexToDecimalString(response string) string {
+	n := new(big.Int)
+	response = strings.Replace(response, "0x", "", -1)
+	n.SetString(response, 16)
+	return n.String()
 }
 
 // GetTransactionReceiptInput is the input to the call
