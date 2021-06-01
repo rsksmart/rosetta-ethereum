@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -311,6 +312,35 @@ func TestStatus_Syncing(t *testing.T) {
 	mockJSONRPC.AssertExpectations(t)
 }
 
+func TestBalance_ReturnsErrorWhenCurrencyDecimalsAreIncorrect(t *testing.T) {
+	mockJSONRPC := &mocks.JSONRPC{}
+	c := &Client{
+		c: mockJSONRPC,
+	}
+	ctx := context.Background()
+	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
+	currencySymbol := DefaultCurrency.Symbol
+	expectedErrorMessage := fmt.Sprintf("currency '%s' uses 18 decimals: error validating request currencies", currencySymbol)
+	invalidDecimalAmountForCurrency := DefaultCurrency.Decimals + 1
+	response, err := c.Balance(
+		ctx,
+		&RosettaTypes.AccountIdentifier{
+			Address: address,
+		},
+		nil,
+		[]*RosettaTypes.Currency {
+			{
+				Symbol:   currencySymbol,
+				Decimals: invalidDecimalAmountForCurrency,
+			},
+		},
+	)
+
+	assert.NotNil(t, err)
+	assert.Equal(t, expectedErrorMessage, err.Error())
+	assert.Nil(t, response)
+}
+
 func TestBalance_ReturnsAllCurrencyBalancesWhenNoCurrencyOrBlockIdentifierIsPassed(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
@@ -349,7 +379,7 @@ func TestBalance_ReturnsAllCurrencyBalancesWhenNoCurrencyOrBlockIdentifierIsPass
 		mockEmptyEthCallResponse(t, mockJSONRPC, ctx, strings.Replace(address, "0x", "", -1), AddressByTokenSymbol[tokenSymbol])
 	}
 
-	resp, err := c.Balance(
+	response, err := c.Balance(
 		ctx,
 		&RosettaTypes.AccountIdentifier{
 			Address: address,
@@ -358,8 +388,25 @@ func TestBalance_ReturnsAllCurrencyBalancesWhenNoCurrencyOrBlockIdentifierIsPass
 		nil,
 	)
 
+	assertAccountBalanceResponsesAreEqual(t, expectedResponse, response)
 	assert.Nil(t, err)
-	assert.Equal(t, expectedResponse, resp)
+}
+
+func assertAccountBalanceResponsesAreEqual(t *testing.T, expectedResponse *RosettaTypes.AccountBalanceResponse,
+	response *RosettaTypes.AccountBalanceResponse) {
+	assert.Equal(t, expectedResponse.BlockIdentifier, response.BlockIdentifier)
+	assert.Equal(t, expectedResponse.Metadata, response.Metadata)
+	assert.Equal(t, len(expectedResponse.Balances), len(response.Balances))
+	for _, expectedBalance := range expectedResponse.Balances {
+		foundBalance := false
+		for _, balance := range response.Balances {
+			if reflect.DeepEqual(expectedBalance, balance) {
+				foundBalance = true
+				break
+			}
+		}
+		assert.True(t, foundBalance)
+	}
 }
 
 func mockEthGetBlockLatestBlockNumber(t *testing.T, mockJSONRPC *mocks.JSONRPC, ctx context.Context) *mock.Call {
@@ -501,7 +548,7 @@ func mockErrorEthGetBalanceResponse(mockJSONRPC *mocks.JSONRPC, ctx context.Cont
 	).Once()
 }
 
-func TestBalance_ReturnsDefaultCurrencyBalanceWhenBlockNumberIsPassedButNoCurrencyIsPassed(t *testing.T) {
+func TestBalance_ReturnsAllCurrenciesBalanceWhenBlockNumberIsPassedButNoCurrencyIsPassed(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c: mockJSONRPC,
@@ -518,15 +565,31 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenBlockNumberIsPassedButNoCurren
 		},
 		Balances: []*RosettaTypes.Amount{
 			{
+				Value:    "0",
+				Currency: DOCCurrency,
+			},
+			{
+				Value:    "0",
+				Currency: RIFCurrency,
+			},
+			{
+				Value:    "0",
+				Currency: RDOCCurrency,
+			},
+			{
 				Value:    "59760731096204670",
 				Currency: DefaultCurrency,
 			},
 		},
 	}
+
 	mockEthGetBlock10992ByNumber(t, mockJSONRPC, ctx)
 	mockSuccessfulEthGetBalanceResponse(t, mockJSONRPC, ctx, address, blockHexNumber)
+	for tokenSymbol := range AddressByTokenSymbol {
+		mockEmptyEthCallResponse(t, mockJSONRPC, ctx, strings.Replace(address, "0x", "", -1), AddressByTokenSymbol[tokenSymbol])
+	}
 
-	resp, err := c.Balance(
+	response, err := c.Balance(
 		ctx,
 		&RosettaTypes.AccountIdentifier{
 			Address: address,
@@ -538,10 +601,10 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenBlockNumberIsPassedButNoCurren
 	)
 
 	assert.Nil(t, err)
-	assert.Equal(t, expectedResponse, resp)
+	assertAccountBalanceResponsesAreEqual(t, expectedResponse, response)
 }
 
-func TestBalance_ReturnsDefaultCurrencyBalanceWhenBlockHashIsPassedButNoCurrencyIsPassed(t *testing.T) {
+func TestBalance_ReturnsAllCurrenciesBalanceWhenBlockHashIsPassedButNoCurrencyIsPassed(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c: mockJSONRPC,
@@ -558,6 +621,18 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenBlockHashIsPassedButNoCurrency
 		},
 		Balances: []*RosettaTypes.Amount{
 			{
+				Value:    "0",
+				Currency: DOCCurrency,
+			},
+			{
+				Value:    "0",
+				Currency: RIFCurrency,
+			},
+			{
+				Value:    "0",
+				Currency: RDOCCurrency,
+			},
+			{
 				Value:    "59760731096204670",
 				Currency: DefaultCurrency,
 			},
@@ -565,6 +640,9 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenBlockHashIsPassedButNoCurrency
 	}
 	mockEthGetBlock10992ByHash(t, mockJSONRPC, ctx)
 	mockSuccessfulEthGetBalanceResponse(t, mockJSONRPC, ctx, address, blockHexNumber)
+	for tokenSymbol := range AddressByTokenSymbol {
+		mockEmptyEthCallResponse(t, mockJSONRPC, ctx, strings.Replace(address, "0x", "", -1), AddressByTokenSymbol[tokenSymbol])
+	}
 
 	resp, err := c.Balance(
 		ctx,
@@ -578,10 +656,10 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenBlockHashIsPassedButNoCurrency
 	)
 
 	assert.Nil(t, err)
-	assert.Equal(t, expectedResponse, resp)
+	assertAccountBalanceResponsesAreEqual(t, expectedResponse, resp)
 }
 
-func TestBalance_ReturnsDefaultCurrencyBalanceWhenFullBlockIdentifierIsPassedButNoCurrencyIsPassed(t *testing.T) {
+func TestBalance_ReturnsAllCurrenciesBalanceWhenFullBlockIdentifierIsPassedButNoCurrencyIsPassed(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c: mockJSONRPC,
@@ -598,6 +676,18 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenFullBlockIdentifierIsPassedBut
 		},
 		Balances: []*RosettaTypes.Amount{
 			{
+				Value:    "0",
+				Currency: DOCCurrency,
+			},
+			{
+				Value:    "0",
+				Currency: RIFCurrency,
+			},
+			{
+				Value:    "0",
+				Currency: RDOCCurrency,
+			},
+			{
 				Value:    "59760731096204670",
 				Currency: DefaultCurrency,
 			},
@@ -605,6 +695,9 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenFullBlockIdentifierIsPassedBut
 	}
 	mockEthGetBlock10992ByHash(t, mockJSONRPC, ctx)
 	mockSuccessfulEthGetBalanceResponse(t, mockJSONRPC, ctx, address, blockHexNumber)
+	for tokenSymbol := range AddressByTokenSymbol {
+		mockEmptyEthCallResponse(t, mockJSONRPC, ctx, strings.Replace(address, "0x", "", -1), AddressByTokenSymbol[tokenSymbol])
+	}
 
 	resp, err := c.Balance(
 		ctx,
@@ -619,7 +712,7 @@ func TestBalance_ReturnsDefaultCurrencyBalanceWhenFullBlockIdentifierIsPassedBut
 	)
 
 	assert.Nil(t, err)
-	assert.Equal(t, expectedResponse, resp)
+	assertAccountBalanceResponsesAreEqual(t, expectedResponse, resp)
 }
 
 func TestBalance_ReturnsErrorWhenNotSupportedCurrenciesAreRequested(t *testing.T) {
@@ -629,7 +722,7 @@ func TestBalance_ReturnsErrorWhenNotSupportedCurrenciesAreRequested(t *testing.T
 	}
 	ctx := context.Background()
 	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
-	expectedErrorMessage := "account balance for alternative currencies is not yet supported"
+	expectedErrorMessage := "currency 'UNSUPPORTED' is not supported: error validating request currencies"
 	mockEthGetBlockLatestBlockNumber(t, mockJSONRPC, ctx)
 
 	resp, err := c.Balance(
@@ -683,7 +776,7 @@ func TestBalance_ReturnsErrorWhenAccountBalanceObtentionFails(t *testing.T) {
 	blockHexNumber := "0x2af0"
 	address := "0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d"
 	blockHash := "0x67a12211d26c56a4439b2175b67fb20ad90c2800d1b3d338c8d733ebeb648ac7"
-	expectedErrorMessage := "test error: failed to get balance for address 0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d and block 0x2af0: failed to get account balance: failed to get account balance for default currency"
+	expectedErrorMessage := "test error: failed to get balance for address 0xb358c6958b1cab722752939cbb92e3fec6b6023de360305910ce80c56c3dad9d and block 0x2af0: failed to get account balance: failed to get account balance"
 	mockEthGetBlock10992ByHash(t, mockJSONRPC, ctx)
 	mockErrorEthGetBalanceResponse(mockJSONRPC, ctx, address, blockHexNumber)
 
@@ -695,7 +788,7 @@ func TestBalance_ReturnsErrorWhenAccountBalanceObtentionFails(t *testing.T) {
 		&RosettaTypes.PartialBlockIdentifier{
 			Hash: &blockHash,
 		},
-		nil,
+		[]*RosettaTypes.Currency{DefaultCurrency},
 	)
 
 	assert.NotNil(t, err)

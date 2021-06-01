@@ -159,10 +159,11 @@ var (
 		DOCCurrency.Symbol:  "0x2d919f19D4892381d58EdEbEcA66D5642ceF1A1F",
 	}
 
-	DecimalsByToken = map[string]int32{
-		RIFCurrency.Symbol:  18,
-		RDOCCurrency.Symbol: 18,
-		DOCCurrency.Symbol:  18,
+	DecimalsByCurrencySymbol = map[string]int32{
+		DefaultCurrency.Symbol: DefaultCurrency.Decimals,
+		RIFCurrency.Symbol:     18,
+		RDOCCurrency.Symbol:    18,
+		DOCCurrency.Symbol:     18,
 	}
 
 	// OperationTypes are all supported operation types.
