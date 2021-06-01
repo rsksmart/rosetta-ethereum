@@ -138,21 +138,32 @@ var (
 		Symbol:   "RBTC",
 		Decimals: 18,
 	}
+	RIFCurrency = &types.Currency{
+		Symbol:   "RIF",
+		Decimals: 18,
+	}
+	RDOCCurrency = &types.Currency{
+		Symbol:   "RDOC",
+		Decimals: 18,
+	}
+	DOCCurrency = &types.Currency{
+		Symbol:   "DOC",
+		Decimals: 18,
+	}
 
-	// TODO: rename to AlternativeCurrencies when JSON-RPC to obtain their balances appear.
-	_ = []*types.Currency{
-		{
-			Symbol:   "RIF",
-			Decimals: 18,
-		},
-		{
-			Symbol:   "RDOC",
-			Decimals: 18,
-		},
-		{
-			Symbol:   "DOC",
-			Decimals: 18,
-		},
+	AvailableCurrencies = []*types.Currency{DefaultCurrency, RIFCurrency, RDOCCurrency, DOCCurrency}
+
+	AddressByTokenSymbol = map[string]string{
+		RIFCurrency.Symbol:  "0x2acc95758f8b5f583470ba265eb685a8f45fc9d5",
+		RDOCCurrency.Symbol: "0xE700691Da7B9851F2F35f8b8182C69C53ccad9DB",
+		DOCCurrency.Symbol:  "0x2d919f19D4892381d58EdEbEcA66D5642ceF1A1F",
+	}
+
+	DecimalsByCurrencySymbol = map[string]int32{
+		DefaultCurrency.Symbol: DefaultCurrency.Decimals,
+		RIFCurrency.Symbol:     18,
+		RDOCCurrency.Symbol:    18,
+		DOCCurrency.Symbol:     18,
 	}
 
 	// OperationTypes are all supported operation types.
