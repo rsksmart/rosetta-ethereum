@@ -35,7 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"golang.org/x/sync/semaphore"
 )
 
 var (
@@ -50,7 +49,6 @@ func TestStatus_NotReady(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -79,7 +77,6 @@ func TestStatus_NotSyncing(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -195,7 +192,6 @@ func TestStatus_Syncing(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -801,7 +797,6 @@ func TestCall(t *testing.T) {
 
 	c := &Client{
 		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -863,7 +858,6 @@ func TestCall_InvalidArgs(t *testing.T) {
 
 	c := &Client{
 		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -884,7 +878,6 @@ func TestCall_InvalidMethod(t *testing.T) {
 
 	c := &Client{
 		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -906,7 +899,6 @@ func TestBlock_Current(t *testing.T) {
 	c := &Client{
 		c:              mockJSONRPC,
 		chainID:        TestnetChainID,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -950,7 +942,6 @@ func TestBlock_Hash(t *testing.T) {
 	c := &Client{
 		c:              mockJSONRPC,
 		chainID:        TestnetChainID,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -998,7 +989,6 @@ func TestBlock_Index(t *testing.T) {
 	c := &Client{
 		c:              mockJSONRPC,
 		chainID:        TestnetChainID,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1059,7 +1049,6 @@ func TestBlock_10994(t *testing.T) {
 	c := &Client{
 		c:              mockJSONRPC,
 		chainID:        TestnetChainID,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1150,7 +1139,6 @@ func TestPendingNonceAt(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1184,7 +1172,6 @@ func TestSuggestGasPrice(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()
@@ -1215,7 +1202,6 @@ func TestSendTransaction(t *testing.T) {
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c:              mockJSONRPC,
-		traceSemaphore: semaphore.NewWeighted(100),
 	}
 
 	ctx := context.Background()

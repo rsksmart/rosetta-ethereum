@@ -34,13 +34,10 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
-	gethHTTPTimeout = 120 * time.Second
-
-	maxTraceConcurrency                           = int64(16) // nolint:gomnd
+	rskjHTTPTimeout                               = 120 * time.Second
 	HexadecimalBitSize                            = 64
 	HexadecimalBase                               = 0 // 0 forces strconv to use the "0x" prefix to determine base.
 	HexadecimalPrefix                             = "0x"
@@ -64,21 +61,20 @@ const (
 //
 // Client borrows HEAVILY from https://github.com/ethereum/go-ethereum/tree/master/ethclient.
 type Client struct {
-	chainID        *big.Int
-	c              JSONRPC
-	traceSemaphore *semaphore.Weighted // TODO: delete if won't use traces.
+	chainID *big.Int
+	c       JSONRPC
 }
 
 // NewClient creates a Client that from the provided url and chain ID.
 func NewClient(url string, chainID *big.Int) (*Client, error) {
 	c, err := rpc.DialHTTPWithClient(url, &http.Client{
-		Timeout: gethHTTPTimeout,
+		Timeout: rskjHTTPTimeout,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to dial node", err)
 	}
 
-	return &Client{chainID, c, semaphore.NewWeighted(maxTraceConcurrency)}, nil
+	return &Client{chainID, c}, nil
 }
 
 // Close shuts down the RPC client connection.
@@ -297,34 +293,56 @@ func hexToInt(hex string) (int64, error) {
 
 func (ec *Client) buildRosettaTransactions(ctx context.Context, rskBlock RskBlock) ([]*RosettaTypes.Transaction, error) {
 	rosettaTransactions := make([]*RosettaTypes.Transaction, len(rskBlock.Transactions))
+	var wg sync.WaitGroup
+	errorChannel := make(chan error, len(rskBlock.Transactions))
 	for index, rskTransaction := range rskBlock.Transactions {
-		rosettaTransactionIdentifier := &RosettaTypes.TransactionIdentifier{
-			Hash: rskTransaction.Hash,
-		}
-		transactionIndex, err := hexToInt(rskTransaction.TransactionIndex)
-		if err != nil {
-			return nil, fmt.Errorf("%w: failed to parse transaction index", err)
-		}
+		wg.Add(1)
+		go ec.addRosettaTransactionToRosettaTransactions(ctx, rskBlock, rskTransaction, rosettaTransactions, index, &wg, errorChannel)
+	}
 
-		rskTransactionType, err := ec.determineRskTransactionType(ctx, rskBlock.Number, rskTransaction)
-		if err != nil {
-			return nil, fmt.Errorf("%w: failed to determine transaction type", err)
-		}
-
-		rosettaTransactionOperation := &RosettaTypes.Operation{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: transactionIndex,
-			},
-			Type: rskTransactionType,
-		}
-		rosettaTransactionOperations := []*RosettaTypes.Operation{rosettaTransactionOperation}
-		rosettaTransactions[index] = &RosettaTypes.Transaction{
-			TransactionIdentifier: rosettaTransactionIdentifier,
-			Operations:            rosettaTransactionOperations,
-			Metadata:              nil,
+	wg.Wait()
+	close(errorChannel)
+	select {
+	case err, errorOccurred := <-errorChannel:
+		if errorOccurred {
+			return nil, fmt.Errorf("%w: failed to build rosetta transactions", err)
 		}
 	}
+
 	return rosettaTransactions, nil
+}
+
+func (ec *Client) addRosettaTransactionToRosettaTransactions(ctx context.Context, rskBlock RskBlock,
+	rskTransaction *RskTransaction, rosettaTransactions []*RosettaTypes.Transaction, index int, wg *sync.WaitGroup,
+	errorChannel chan<- error) {
+	defer wg.Done()
+	rosettaTransactionIdentifier := &RosettaTypes.TransactionIdentifier{
+		Hash: rskTransaction.Hash,
+	}
+	transactionIndex, err := hexToInt(rskTransaction.TransactionIndex)
+	if err != nil {
+		errorChannel <- fmt.Errorf("%w: failed to parse transaction index", err)
+		return
+	}
+
+	rskTransactionType, err := ec.determineRskTransactionType(ctx, rskBlock.Number, rskTransaction)
+	if err != nil {
+		errorChannel <- fmt.Errorf("%w: failed to determine transaction type", err)
+		return
+	}
+
+	rosettaTransactionOperation := &RosettaTypes.Operation{
+		OperationIdentifier: &RosettaTypes.OperationIdentifier{
+			Index: transactionIndex,
+		},
+		Type: rskTransactionType,
+	}
+	rosettaTransactionOperations := []*RosettaTypes.Operation{rosettaTransactionOperation}
+	rosettaTransactions[index] = &RosettaTypes.Transaction{
+		TransactionIdentifier: rosettaTransactionIdentifier,
+		Operations:            rosettaTransactionOperations,
+		Metadata:              nil,
+	}
 }
 
 func (ec *Client) buildParentBlockIdentifierFromBlockIdentifier(blockIdentifier *RosettaTypes.BlockIdentifier, rskBlock RskBlock) *RosettaTypes.BlockIdentifier {
