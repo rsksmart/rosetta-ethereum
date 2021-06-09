@@ -242,16 +242,87 @@ func CreateType(t string) bool {
 	return false
 }
 
-type RskBlock struct {
-	Number       string            `json:"number"`
-	Hash         string            `json:"hash"`
-	ParentHash   string            `json:"parentHash"`
-	Timestamp    string            `json:"timestamp"`
-	Transactions []*RskTransaction `json:"transactions"`
+type Block struct {
+	Number       string         `json:"number"`
+	Hash         string         `json:"hash"`
+	ParentHash   string         `json:"parentHash"`
+	Timestamp    string         `json:"timestamp"`
+	Transactions []*Transaction `json:"transactions"`
 }
 
-type RskTransaction struct {
-	Hash               string `json:"hash"`
-	TransactionIndex   string `json:"transactionIndex"`
-	DestinationAddress string `json:"to"`
+type Transaction struct {
+	Hash             string `json:"hash"`
+	TransactionIndex string `json:"transactionIndex"`
+	From             string `json:"from"`
+	To               string `json:"to"`
+	GasPrice         string `json:"gasPrice"`
+}
+
+type Receipt struct {
+	To              string `json:"to"`
+	ContractAddress string `json:"contractAddress"`
+	GasUsed         string `json:"gasUsed"`
+}
+
+type Trace struct {
+	Result          string          `json:"result,omitempty"`
+	Error           string          `json:"error,omitempty"`
+	Reverted        bool            `json:"reverted,omitempty"`
+	ProgramInvoke   interface{}     `json:"programInvoke,omitempty"`
+	TransferInvoke  *TransferInvoke `json:"transferInvoke,omitempty"`
+	ContractAddress string          `json:"contractAddress,omitempty"`
+	SubTraces       []*SubTrace     `json:"subtraces,omitempty"`
+	StructLogs      []*StructLog    `json:"structLogs,omitempty"`
+}
+
+//type Trace struct {
+//	SubTraces []*SubTrace `json:"subtraces"`
+//	Result    string             `json:"result"`
+//	Error     string             `json:"error"`
+//	Reverted  bool               `json:"reverted"`
+//}
+
+//type SummarizedProgramTrace struct {
+//	Trace
+//	ProgramInvoke  interface{}     `json:"programInvoke"`
+//	TransferInvoke *TransferInvoke `json:"transferInvoke"`
+//}
+//
+//type DetailedProgramTrace struct {
+//	// storage properties are not parsed in purpose, since the rskj node doesn't support options to disable storage yet.
+//	Trace
+//	ContractAddress string
+//	StructLogs      []*StructLog
+//}
+
+type SubTrace struct {
+	TraceType      string      `json:"traceType"`
+	CallType       string      `json:"callType"`
+	CreationData   interface{} `json:"creationData"`
+	CreationMethod string      `json:"creationMethod"`
+	InvokeData     *InvokeData `json:"invokeData"`
+	ProgramResult  interface{} `json:"programResult"`
+	CodeAddress    string      `json:"codeAddress"`
+	SubTraces      []*SubTrace `json:"subtraces"`
+}
+
+type TransferInvoke struct {
+	OwnerAddress  string `json:"ownerAddress"`
+	CallerAddress string `json:"callerAddress"`
+	Gas           int64  `json:"gas"`
+	CallValue     string `json:"callValue"`
+}
+
+type InvokeData struct {
+	TransferInvoke
+	DataValue string `json:"dataValue"`
+	DataSize  string `json:"dataSize"`
+}
+
+type StructLog struct {
+	Op      string `json:"op"`
+	Depth   int64  `json:"depth"`
+	Pc      int64  `json:"pc"`
+	Gas     int64  `json:"gas"`
+	GasCost int64  `json:"gasCost"`
 }

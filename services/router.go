@@ -59,18 +59,11 @@ func NewBlockchainRouter(
 		asserter,
 	)
 
-	callAPIService := NewCallAPIService(config, client)
-	callAPIController := server.NewCallAPIController(
-		callAPIService,
-		asserter,
-	)
-
 	return server.NewRouter(
 		networkAPIController,
 		accountAPIController,
 		blockAPIController,
 		constructionAPIController,
 		mempoolAPIController,
-		callAPIController,
 	)
 }

@@ -55,11 +55,6 @@ type Client interface {
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 
 	SendTransaction(ctx context.Context, tx *ethTypes.Transaction) error
-
-	Call(
-		ctx context.Context,
-		request *types.CallRequest,
-	) (*types.CallResponse, error)
 }
 
 type options struct {
