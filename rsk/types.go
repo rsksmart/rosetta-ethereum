@@ -256,6 +256,7 @@ type Transaction struct {
 	From             string `json:"from"`
 	To               string `json:"to"`
 	GasPrice         string `json:"gasPrice"`
+	Gas              string `json:"gas"`
 }
 
 type Receipt struct {
@@ -296,14 +297,19 @@ type Trace struct {
 //}
 
 type SubTrace struct {
-	TraceType      string      `json:"traceType"`
-	CallType       string      `json:"callType"`
-	CreationData   interface{} `json:"creationData"`
-	CreationMethod string      `json:"creationMethod"`
-	InvokeData     *InvokeData `json:"invokeData"`
-	ProgramResult  interface{} `json:"programResult"`
-	CodeAddress    string      `json:"codeAddress"`
-	SubTraces      []*SubTrace `json:"subtraces"`
+	TraceType      string         `json:"traceType"`
+	CallType       string         `json:"callType"`
+	CreationData   interface{}    `json:"creationData"`
+	CreationMethod string         `json:"creationMethod"`
+	InvokeData     *InvokeData    `json:"invokeData"`
+	ProgramResult  *ProgramResult `json:"programResult"`
+	CodeAddress    string         `json:"codeAddress"`
+	SubTraces      []*SubTrace    `json:"subtraces"`
+}
+
+type ProgramResult struct {
+	Revert  bool  `json:"revert"`
+	GasUsed int64 `json:"gasUsed"`
 }
 
 type TransferInvoke struct {
