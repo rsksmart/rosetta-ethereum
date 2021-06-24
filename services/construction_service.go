@@ -16,13 +16,13 @@ package services
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math/big"
-	"strconv"
-
 	"github.com/rsksmart/rosetta-rsk/configuration"
 	"github.com/rsksmart/rosetta-rsk/rsk"
+	"math/big"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -36,16 +36,19 @@ import (
 type ConstructionAPIService struct {
 	config *configuration.Configuration
 	client Client
+	transactionEncoder rsk.TransactionEncoder
 }
 
 // NewConstructionAPIService creates a new instance of a ConstructionAPIService.
 func NewConstructionAPIService(
 	cfg *configuration.Configuration,
 	client Client,
+	transactionEncoder rsk.TransactionEncoder,
 ) *ConstructionAPIService {
 	return &ConstructionAPIService{
 		config: cfg,
 		client: client,
+		transactionEncoder: transactionEncoder,
 	}
 }
 
@@ -273,8 +276,8 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 	}
 
 	// Construct SigningPayload
-	signer := ethTypes.NewEIP155Signer(chainID)
-	hash := signer.Hash(tx) // TODO: remove variable
+	signer := ethTypes.NewEIP155Signer(chainID) // TODO: check if signer is correct for RSK
+	hash := signer.Hash(tx)                     // TODO: remove variable
 	hashHex := hash.Hex()
 	fmt.Println(hashHex)
 	payload := &types.SigningPayload{
@@ -288,10 +291,41 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
 
-	return &types.ConstructionPayloadsResponse{
+	c := &types.ConstructionPayloadsResponse{
 		UnsignedTransaction: string(unsignedTxJSON),
 		Payloads:            []*types.SigningPayload{payload},
-	}, nil
+	}
+	bla, _ := json.Marshal(c)
+	fmt.Println(string(bla))
+	return c, nil
+}
+
+type RskSigner struct {
+	ethTypes.FrontierSigner
+}
+
+func (rs *RskSigner) SignatureValues(tx *ethTypes.Transaction, sig []byte) (r, s, v *big.Int, err error) {
+	if len(sig) != crypto.SignatureLength {
+		return nil, nil, nil, fmt.Errorf("wrong size for signature: got %d, want %d", len(sig), crypto.SignatureLength)
+	}
+	r = new(big.Int).SetBytes(sig[:32])
+	s = new(big.Int).SetBytes(sig[32:64])
+	// TODO: modify V so it's like in the RSK code.
+	defaultV := new(big.Int).SetBytes([]byte{sig[64]})
+	defaultV = big.NewInt(27)
+	v = big.NewInt(0)
+	if tx.ChainId().Cmp(big.NewInt(0)) != 0 {
+		v = v.
+			Add(v, rsk.TestnetChainID). // TODO: invent some way to derive this?
+			Mul(v, big.NewInt(2)).
+			Add(v, big.NewInt(35)). // CHAIN_ID_INC
+			Sub(v, big.NewInt(27)). // LOWER_REAL_V
+			Add(v, defaultV)
+	} else {
+		v.Add(v, defaultV)
+	}
+	fmt.Printf("v is %d\n", v)
+	return r, s, v, nil
 }
 
 // ConstructionCombine implements the /construction/combine
@@ -314,19 +348,44 @@ func (s *ConstructionAPIService) ConstructionCombine(
 		unsignedTx.Input,
 	)
 
-	signer := ethTypes.NewEIP155Signer(unsignedTx.ChainID)
+	// TODO: maybe an RSK signer might differ from this
+	signer := &RskSigner{}
+	//signer := ethTypes.NewEIP155Signer(unsignedTx.ChainID)
+	r, s2, v, _ := signer.SignatureValues(ethTransaction, request.Signatures[0].Bytes)
+
+	strR := hex.EncodeToString(r.Bytes())
+	strV := hex.EncodeToString(v.Bytes())
+	strS := hex.EncodeToString(s2.Bytes())
+
+	fmt.Printf("R: %s, V: %s, S: %s\n", strR, strV, strS)
+
 	signedTx, err := ethTransaction.WithSignature(signer, request.Signatures[0].Bytes)
 	if err != nil {
 		return nil, wrapErr(ErrSignatureInvalid, err)
 	}
 
-	signedTxJSON, err := signedTx.MarshalJSON()
+	nonce := signedTx.Nonce()
+	gas := signedTx.Gas()
+	gasPrice := signedTx.GasPrice()
+	value := signedTx.Value()
+	data := signedTx.Data()
+
+
+	//////////////////////////////////////////////////////////
+
+	// TODO: handle error.
+	encodedTxBytes, _ := s.transactionEncoder.EncodeTransaction(nonce, gas, unsignedTx.To, gasPrice, value, data, v, r, s2)
+
+	encodedTxHex := hex.EncodeToString(encodedTxBytes)
+
+	//signedTxJSON, err := signedTx.MarshalJSON() // TODO: delete.
+
 	if err != nil {
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
 
 	return &types.ConstructionCombineResponse{
-		SignedTransaction: string(signedTxJSON),
+		SignedTransaction: encodedTxHex,
 	}, nil
 }
 

@@ -43,7 +43,7 @@ var (
 		},
 	}
 
-	networkIdentifier = &types.NetworkIdentifier{
+	networkServiceNetworkIdentifier = &types.NetworkIdentifier{
 		Network:    rsk.MainnetNetwork,
 		Blockchain: rsk.Blockchain,
 	}
@@ -52,7 +52,7 @@ var (
 func TestNetworkEndpoints_Offline(t *testing.T) {
 	cfg := &configuration.Configuration{
 		Mode:    configuration.Offline,
-		Network: networkIdentifier,
+		Network: networkServiceNetworkIdentifier,
 	}
 	mockClient := &mocks.Client{}
 	servicer := NewNetworkAPIService(cfg, mockClient)
@@ -61,7 +61,7 @@ func TestNetworkEndpoints_Offline(t *testing.T) {
 	networkList, err := servicer.NetworkList(ctx, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, []*types.NetworkIdentifier{
-		networkIdentifier,
+		networkServiceNetworkIdentifier,
 	}, networkList.NetworkIdentifiers)
 
 	networkStatus, err := servicer.NetworkStatus(ctx, nil)
@@ -79,7 +79,7 @@ func TestNetworkEndpoints_Offline(t *testing.T) {
 func TestNetworkEndpoints_Online(t *testing.T) {
 	cfg := &configuration.Configuration{
 		Mode:                   configuration.Online,
-		Network:                networkIdentifier,
+		Network:                networkServiceNetworkIdentifier,
 		GenesisBlockIdentifier: rsk.MainnetGenesisBlockIdentifier,
 	}
 	mockClient := &mocks.Client{}
@@ -89,7 +89,7 @@ func TestNetworkEndpoints_Online(t *testing.T) {
 	networkList, err := servicer.NetworkList(ctx, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, []*types.NetworkIdentifier{
-		networkIdentifier,
+		networkServiceNetworkIdentifier,
 	}, networkList.NetworkIdentifiers)
 
 	currentBlock := &types.BlockIdentifier{

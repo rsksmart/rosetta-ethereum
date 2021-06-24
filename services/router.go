@@ -16,6 +16,7 @@ package services
 
 import (
 	"github.com/rsksmart/rosetta-rsk/configuration"
+	"github.com/rsksmart/rosetta-rsk/rsk"
 	"net/http"
 
 	"github.com/coinbase/rosetta-sdk-go/asserter"
@@ -28,6 +29,7 @@ func NewBlockchainRouter(
 	config *configuration.Configuration,
 	client Client,
 	asserter *asserter.Asserter,
+	transactionEncoder rsk.TransactionEncoder,
 ) http.Handler {
 	networkAPIService := NewNetworkAPIService(config, client)
 	networkAPIController := server.NewNetworkAPIController(
@@ -47,7 +49,7 @@ func NewBlockchainRouter(
 		asserter,
 	)
 
-	constructionAPIService := NewConstructionAPIService(config, client)
+	constructionAPIService := NewConstructionAPIService(config, client, transactionEncoder)
 	constructionAPIController := server.NewConstructionAPIController(
 		constructionAPIService,
 		asserter,
