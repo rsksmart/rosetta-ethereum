@@ -14,7 +14,7 @@ type TransactionEncoder struct {
 }
 
 // EncodeTransaction provides a mock function with given fields: nonce, gas, receiverAddress, gasPrice, value, data, ecdsaSignatureV, ecdsaSignatureR, ecdsaSignatureS
-func (_m *TransactionEncoder) EncodeTransaction(nonce uint64, gas uint64, receiverAddress string, gasPrice *big.Int, value *big.Int, data []byte, ecdsaSignatureV *big.Int, ecdsaSignatureR *big.Int, ecdsaSignatureS *big.Int) ([]byte, error) {
+func (_m *TransactionEncoder) EncodeTransaction(nonce uint64, gas uint64, receiverAddress string, gasPrice *big.Int, value *big.Int, data []byte, ecdsaSignatureV *big.Int, ecdsaSignatureR *big.Int, ecdsaSignatureS *big.Int, chainID *big.Int) ([]byte, error) {
 	ret := _m.Called(nonce, gas, receiverAddress, gasPrice, value, data, ecdsaSignatureV, ecdsaSignatureR, ecdsaSignatureS)
 
 	var r0 []byte

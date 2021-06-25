@@ -34,8 +34,8 @@ import (
 
 // ConstructionAPIService implements the server.ConstructionAPIServicer interface.
 type ConstructionAPIService struct {
-	config *configuration.Configuration
-	client Client
+	config             *configuration.Configuration
+	client             Client
 	transactionEncoder rsk.TransactionEncoder
 }
 
@@ -46,8 +46,8 @@ func NewConstructionAPIService(
 	transactionEncoder rsk.TransactionEncoder,
 ) *ConstructionAPIService {
 	return &ConstructionAPIService{
-		config: cfg,
-		client: client,
+		config:             cfg,
+		client:             client,
 		transactionEncoder: transactionEncoder,
 	}
 }
@@ -310,21 +310,7 @@ func (rs *RskSigner) SignatureValues(tx *ethTypes.Transaction, sig []byte) (r, s
 	}
 	r = new(big.Int).SetBytes(sig[:32])
 	s = new(big.Int).SetBytes(sig[32:64])
-	// TODO: modify V so it's like in the RSK code.
-	defaultV := new(big.Int).SetBytes([]byte{sig[64]})
-	defaultV = big.NewInt(27)
-	v = big.NewInt(0)
-	if tx.ChainId().Cmp(big.NewInt(0)) != 0 {
-		v = v.
-			Add(v, rsk.TestnetChainID). // TODO: invent some way to derive this?
-			Mul(v, big.NewInt(2)).
-			Add(v, big.NewInt(35)). // CHAIN_ID_INC
-			Sub(v, big.NewInt(27)). // LOWER_REAL_V
-			Add(v, defaultV)
-	} else {
-		v.Add(v, defaultV)
-	}
-	fmt.Printf("v is %d\n", v)
+	v = new(big.Int).SetBytes([]byte{sig[64]})
 	return r, s, v, nil
 }
 
@@ -348,44 +334,27 @@ func (s *ConstructionAPIService) ConstructionCombine(
 		unsignedTx.Input,
 	)
 
-	// TODO: maybe an RSK signer might differ from this
 	signer := &RskSigner{}
-	//signer := ethTypes.NewEIP155Signer(unsignedTx.ChainID)
-	r, s2, v, _ := signer.SignatureValues(ethTransaction, request.Signatures[0].Bytes)
-
-	strR := hex.EncodeToString(r.Bytes())
-	strV := hex.EncodeToString(v.Bytes())
-	strS := hex.EncodeToString(s2.Bytes())
-
-	fmt.Printf("R: %s, V: %s, S: %s\n", strR, strV, strS)
-
 	signedTx, err := ethTransaction.WithSignature(signer, request.Signatures[0].Bytes)
 	if err != nil {
 		return nil, wrapErr(ErrSignatureInvalid, err)
 	}
 
+	ecdsaR, ecdsaS, ecdsaV, _ := signer.SignatureValues(ethTransaction, request.Signatures[0].Bytes)
 	nonce := signedTx.Nonce()
 	gas := signedTx.Gas()
 	gasPrice := signedTx.GasPrice()
 	value := signedTx.Value()
 	data := signedTx.Data()
 
-
-	//////////////////////////////////////////////////////////
-
-	// TODO: handle error.
-	encodedTxBytes, _ := s.transactionEncoder.EncodeTransaction(nonce, gas, unsignedTx.To, gasPrice, value, data, v, r, s2)
-
+	encodedTxBytes, err := s.transactionEncoder.EncodeTransaction(nonce, gas, unsignedTx.To, gasPrice, value, data,
+		ecdsaV, ecdsaR, ecdsaS, unsignedTx.ChainID)
 	encodedTxHex := hex.EncodeToString(encodedTxBytes)
-
-	//signedTxJSON, err := signedTx.MarshalJSON() // TODO: delete.
-
 	if err != nil {
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
-
 	return &types.ConstructionCombineResponse{
-		SignedTransaction: encodedTxHex,
+		SignedTransaction: fmt.Sprintf("0x%s", encodedTxHex),
 	}, nil
 }
 
