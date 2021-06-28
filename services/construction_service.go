@@ -347,8 +347,11 @@ func (s *ConstructionAPIService) ConstructionCombine(
 	value := signedTx.Value()
 	data := signedTx.Data()
 
-	encodedTxBytes, err := s.transactionEncoder.EncodeTransaction(nonce, gas, unsignedTx.To, gasPrice, value, data,
-		ecdsaV, ecdsaR, ecdsaS, unsignedTx.ChainID)
+	rlpTransactionParameters := &rsk.RlpTransactionParameters{
+		nonce, gas, unsignedTx.To, gasPrice, value, data,
+		ecdsaV, ecdsaR, ecdsaS, unsignedTx.ChainID,
+	}
+	encodedTxBytes, err := s.transactionEncoder.EncodeTransaction(rlpTransactionParameters)
 	encodedTxHex := hex.EncodeToString(encodedTxBytes)
 	if err != nil {
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)

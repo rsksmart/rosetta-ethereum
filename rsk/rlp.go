@@ -14,19 +14,33 @@ const (
 	lowerRealV = 27 // TODO: rename to anything clearer.
 )
 
+type RlpTransactionParameters struct {
+	Nonce uint64
+	Gas uint64
+	ReceiverAddress string
+	GasPrice *big.Int
+	Value *big.Int
+	Data []byte
+	EcdsaSignatureV *big.Int
+	EcdsaSignatureR *big.Int
+	EcdsaSignatureS *big.Int
+	ChainID *big.Int
+}
+
 type TransactionEncoder interface {
-	EncodeTransaction(nonce uint64, gas uint64, receiverAddress string, gasPrice *big.Int, value *big.Int, data []byte,
-		ecdsaSignatureV *big.Int, ecdsaSignatureR *big.Int, ecdsaSignatureS *big.Int, chainID *big.Int) ([]byte, error)
+	EncodeTransaction(rlpTransactionParameters *RlpTransactionParameters) ([]byte, error)
+	DecodeTransaction([]byte) (*RlpTransactionParameters, error)
 }
 
 type RlpTransactionEncoder struct {
 }
 
-func (e *RlpTransactionEncoder) EncodeTransaction(nonce uint64, gas uint64, receiverAddress string, gasPrice *big.Int,
-	value *big.Int, data []byte, ecdsaSignatureV *big.Int, ecdsaSignatureR *big.Int, ecdsaSignatureS *big.Int,
-	chainID *big.Int) ([]byte, error) {
-	encodedTxFieldsBytes, err := e.getEncodedTxFieldsBytes(nonce, gas, receiverAddress, gasPrice, value, data,
-		ecdsaSignatureV, ecdsaSignatureR, ecdsaSignatureS, chainID)
+func NewRlpTransactionEncoder() *RlpTransactionEncoder {
+	return &RlpTransactionEncoder{}
+}
+
+func (e *RlpTransactionEncoder) EncodeTransaction(rlpTransactionParameters *RlpTransactionParameters) ([]byte, error) {
+	encodedTxFieldsBytes, err := e.getEncodedTxFieldsBytes(rlpTransactionParameters)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get bytes of encoded transaction fields", err)
 	}
@@ -36,23 +50,21 @@ func (e *RlpTransactionEncoder) EncodeTransaction(nonce uint64, gas uint64, rece
 	return rlpEncodedTransaction, nil
 }
 
-func (e *RlpTransactionEncoder) getEncodedTxFieldsBytes(nonce uint64, gas uint64, receiverAddress string,
-	gasPrice *big.Int, value *big.Int, data []byte, ecdsaSignatureV *big.Int, ecdsaSignatureR *big.Int,
-	ecdsaSignatureS *big.Int, chainID *big.Int) ([][]byte, error) {
-	binaryToAddress, err := hex.DecodeString(strings.Replace(receiverAddress, "0x", "", 1))
+func (e *RlpTransactionEncoder) getEncodedTxFieldsBytes(rlpTransactionParameters *RlpTransactionParameters) ([][]byte, error) {
+	binaryToAddress, err := hex.DecodeString(strings.Replace(rlpTransactionParameters.ReceiverAddress, "0x", "", 1))
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get receiver address bytes", err)
 	}
 	// Converting uint64 to bytes is Satan himself, so better work with big.Int when possible
-	nonceBytes, err := e.encodeBigIntAsUnsigned(e.uint64ToBigInt(nonce))
+	nonceBytes, err := e.encodeBigIntAsUnsigned(e.uint64ToBigInt(rlpTransactionParameters.Nonce))
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode nonce", err)
 	}
-	gasPriceBytes, err := e.encodeBigInt(gasPrice)
+	gasPriceBytes, err := e.encodeBigInt(rlpTransactionParameters.GasPrice)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode gas price", err)
 	}
-	gasBytes, err := rlp.EncodeToBytes(e.uint64ToBigInt(gas))
+	gasBytes, err := rlp.EncodeToBytes(e.uint64ToBigInt(rlpTransactionParameters.Gas))
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode gas", err)
 	}
@@ -60,24 +72,24 @@ func (e *RlpTransactionEncoder) getEncodedTxFieldsBytes(nonce uint64, gas uint64
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode receiver address", err)
 	}
-	valueBytes, err := e.encodeBigInt(value)
+	valueBytes, err := e.encodeBigInt(rlpTransactionParameters.Value)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode value", err)
 	}
-	dataBytes, err := rlp.EncodeToBytes(data)
+	dataBytes, err := rlp.EncodeToBytes(rlpTransactionParameters.Data)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode data", err)
 	}
 
-	vBytes, err := e.encodeEcdsaSignatureV(chainID, ecdsaSignatureV)
+	vBytes, err := e.encodeEcdsaSignatureV(rlpTransactionParameters.ChainID, rlpTransactionParameters.EcdsaSignatureV)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode component V of ECDSA signature", err)
 	}
-	rBytes, err := e.encodeBigIntAsUnsigned(ecdsaSignatureR)
+	rBytes, err := e.encodeBigIntAsUnsigned(rlpTransactionParameters.EcdsaSignatureR)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode component R of ECDSA signature", err)
 	}
-	sBytes, err := e.encodeBigIntAsUnsigned(ecdsaSignatureS)
+	sBytes, err := e.encodeBigIntAsUnsigned(rlpTransactionParameters.EcdsaSignatureS)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode component S of ECDSA signature", err)
 	}
@@ -86,6 +98,7 @@ func (e *RlpTransactionEncoder) getEncodedTxFieldsBytes(nonce uint64, gas uint64
 	}, nil
 }
 
+// in RSK, the encoded V value also features the chain ID
 func (e *RlpTransactionEncoder) encodeEcdsaSignatureV(chainID, ecdsaSignatureV *big.Int) ([]byte, error) {
 	defaultV := ecdsaSignatureV
 	v := big.NewInt(0)
@@ -155,4 +168,8 @@ func (e *RlpTransactionEncoder) getListEncodingPrefix(encodedByteAmount uint64) 
 	prefixBytes := append([]byte{binaryPrefix[0]}, bytesRepresentingLengthOfEncodedData[8-bytesNeededToRepresentAmount:8]...)
 
 	return prefixBytes
+}
+
+func (e *RlpTransactionEncoder) DecodeTransaction([]byte) (*RlpTransactionParameters, error) {
+	return nil, nil
 }

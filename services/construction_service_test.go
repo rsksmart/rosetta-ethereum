@@ -109,7 +109,7 @@ func TestConstructionService(t *testing.T) {
     },
     "type": "CALL",
     "account": {
-        "address": "0x6e88dd4c85edde75ae906f6165cec292794fc8d9"
+        "address": "0x6e88DD4C85eddE75aE906f6165cEC292794FC8D9"
     },
     "amount": {
         "value": "10000000000000000",
@@ -175,14 +175,12 @@ func TestConstructionService(t *testing.T) {
 	}, metadataResponse)
 
 	// Test Payloads
-	unsignedRaw := `{"from":"0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62","to":"0x6e88dd4c85edde75ae906f6165cec292794fc8d9","value":"0x2386f26fc10000","input":"0x","nonce":"0x1","gas_price":"0x4a817c800","gas":"0x5208","chain_id":"0x1f"}`
+	unsignedRaw := `{"from":"0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62","to":"0x6e88DD4C85eddE75aE906f6165cEC292794FC8D9","value":"0x2386f26fc10000","input":"0x","nonce":"0x1","gas_price":"0x4a817c800","gas":"0x5208","chain_id":"0x1f"}`
 	constructionPayloadsRequest := &types.ConstructionPayloadsRequest{
 		NetworkIdentifier: constructionServiceNetworkIdentifier,
 		Operations:        ops,
 		Metadata:          forceMarshalMap(t, metadata),
 	}
-	//jsonMessage, _ := json.Marshal(*constructionPayloadsRequest)
-	//fmt.Println(string(jsonMessage))
 	payloadsResponse, err := service.ConstructionPayloads(ctx, constructionPayloadsRequest)
 	assert.Nil(t, err)
 	payloadsRaw := `
@@ -205,7 +203,7 @@ func TestConstructionService(t *testing.T) {
 	}, payloadsResponse)
 
 	// Test Parse Unsigned
-	parseOpsRaw := `[{"operation_identifier":{"index":0},"type":"CALL","account":{"address":"0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62"},"amount":{"value":"-10000000000000000","currency":{"symbol":"RBTC","decimals":18}}},{"operation_identifier":{"index":1},"related_operations":[{"index":0}],"type":"CALL","account":{"address":"0x6e88dd4c85edde75ae906f6165cec292794fc8d9"},"amount":{"value":"10000000000000000","currency":{"symbol":"RBTC","decimals":18}}}]` // nolint
+	parseOpsRaw := `[{"operation_identifier":{"index":0},"type":"CALL","account":{"address":"0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62"},"amount":{"value":"-10000000000000000","currency":{"symbol":"RBTC","decimals":18}}},{"operation_identifier":{"index":1},"related_operations":[{"index":0}],"type":"CALL","account":{"address":"0x6e88DD4C85eddE75aE906f6165cEC292794FC8D9"},"amount":{"value":"10000000000000000","currency":{"symbol":"RBTC","decimals":18}}}]` // nolint
 	var parseOps []*types.Operation
 	assert.NoError(t, json.Unmarshal([]byte(parseOpsRaw), &parseOps))
 	parseUnsignedResponse, err := service.ConstructionParse(ctx, &types.ConstructionParseRequest{
@@ -226,8 +224,6 @@ func TestConstructionService(t *testing.T) {
 	}, parseUnsignedResponse)
 
 	// Test Combine
-	// signature con v = 27 - 5fb93a9ec10x38511337485411639377543678494003551925256172462107434813401171826708906727216ab3719c36bf99fe974c933b11aef24bb58bddd6108c4cc6bd696a763e42268da42eb1a5ddd1738548ee0857f4f80aa933ff5dec080aa01d7f6f0491b
-	// TODO: el método WithSignature de la transaction requiere que sea 0 o 1 el V
 	signaturesRaw := `
 [{
    "hex_bytes": "84007fdcb62e921eaedc37f7d6eab8c7290f29bf994a21642e1bf16631aef1c33fe112900a4dcebbeda46537c301f39ce7e02e0d7a063ce0bd878dbb21c7f50d1b",
@@ -247,11 +243,8 @@ func TestConstructionService(t *testing.T) {
 `
 	var signatures []*types.Signature
 	assert.NoError(t, json.Unmarshal([]byte(signaturesRaw), &signatures))
-	//signedRaw := `{"nonce":"0x0","gasPrice":"0x4a817c800","gas":"0x5208","to":"0x6e88dd4c85edde75ae906f6165cec292794fc8d9","value":"0x2386f26fc10000","input":"0x","v":28,"r":"0x8c712c64bc65c4a88707fa93ecd090144dffb1bf133805a10a51d354c2f9f2b2","s":"0x5a63cea6989f4c58372c41f31164036a6b25dce1d5c05e1d31c16c0590c176e8","hash":"0xa85e32fbbf41c00d6edb9e3080da64e19d4a45c2590295c555a7b159ebe0d70f"}` // nolint
-
-	// TODO: evaluar devolver unicamente el hash aca; como muestra la documentacion, ya que el resto de la metadata es innecesario
 	// TODO: mockear salida de transaction encoder
-	signedRaw := `{"nonce":"0x1","gasPrice":"0x4a817c800","gas":"0x5208","to":"0x6e88dd4c85edde75ae906f6165cec292794fc8d9","value":"0x2386f26fc10000","input":"0x","v":"0x1b","r":"0x84007fdcb62e921eaedc37f7d6eab8c7290f29bf994a21642e1bf16631aef1c3","s":"0x3fe112900a4dcebbeda46537c301f39ce7e02e0d7a063ce0bd878dbb21c7f50d","hash":"0xf86b018504a817c800825208946e88dd4c85edde75ae906f6165cec292794fc8d9872386f26fc100008061a084007fdcb62e921eaedc37f7d6eab8c7290f29bf994a21642e1bf16631aef1c3a03fe112900a4dcebbeda46537c301f39ce7e02e0d7a063ce0bd878dbb21c7f50d"}` // TODO: maybe the hash is incorrect
+	signedRaw := "0xf86b018504a817c800825208946e88dd4c85edde75ae906f6165cec292794fc8d9872386f26fc10000801ba084007fdcb62e921eaedc37f7d6eab8c7290f29bf994a21642e1bf16631aef1c3a03fe112900a4dcebbeda46537c301f39ce7e02e0d7a063ce0bd878dbb21c7f50d"
 
 	combineResponse, err := service.ConstructionCombine(ctx, &types.ConstructionCombineRequest{
 		NetworkIdentifier:   constructionServiceNetworkIdentifier,
