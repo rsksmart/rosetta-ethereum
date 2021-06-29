@@ -342,14 +342,14 @@ func (s *ConstructionAPIService) ConstructionCombine(
 
 	ecdsaR, ecdsaS, ecdsaV, _ := signer.SignatureValues(ethTransaction, request.Signatures[0].Bytes)
 	nonce := signedTx.Nonce()
-	gas := signedTx.Gas()
+	gas := new(big.Int).SetUint64(signedTx.Gas())
 	gasPrice := signedTx.GasPrice()
 	value := signedTx.Value()
 	data := signedTx.Data()
 
 	rlpTransactionParameters := &rsk.RlpTransactionParameters{
-		nonce, gas, unsignedTx.To, gasPrice, value, data,
-		ecdsaV, ecdsaR, ecdsaS, unsignedTx.ChainID,
+		Nonce: nonce, Gas: gas, ReceiverAddress: unsignedTx.To, GasPrice: gasPrice, Value: value, Data: data,
+		EcdsaSignatureV: ecdsaV, EcdsaSignatureR: ecdsaR, EcdsaSignatureS: ecdsaS, ChainID: unsignedTx.ChainID,
 	}
 	encodedTxBytes, err := s.transactionEncoder.EncodeTransaction(rlpTransactionParameters)
 	encodedTxHex := hex.EncodeToString(encodedTxBytes)
