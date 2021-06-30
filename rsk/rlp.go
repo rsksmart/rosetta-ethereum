@@ -18,11 +18,12 @@ const (
 	chainIDEncodingAdditionModifier         = 35
 	lowestPossibleV                         = 27
 	rlpEncodingPrefixBaseNumber             = 247
-	smallRlpListMaxSize                     = 55
-	minimumListSizeInBytes                  = 192 // TODO: figure out meaning and rename
+	smallRlpItemMaxSize                     = 55
+	minimumListSizeInBytes                  = 192
 	emptyMark                               = 128
 	expectedElementsInRlpEncodedTransaction = 9
 	expectedRlpEncodedEcdsaVSizeInBytes     = 1
+	smallRlpItemMask                        = 0x7f
 )
 
 type RlpTransactionParameters struct {
@@ -50,23 +51,26 @@ func NewRlpTransactionEncoder() *RlpTransactionEncoder {
 	return &RlpTransactionEncoder{}
 }
 
+// EncodeTransaction RLP encodes a transaction. It uses RSK custom logic for prefix bytes, and geth logic for
+// leaf item encoding. Due to the custom prefix bytes, decoding cannot use any geth logic.
 func (e *RlpTransactionEncoder) EncodeTransaction(rlpTransactionParameters *RlpTransactionParameters) ([]byte, error) {
 	encodedTxFieldsBytes, err := e.getEncodedTxFieldsBytes(rlpTransactionParameters)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get bytes of encoded transaction fields", err)
 	}
-	joinedEncodedTxFieldsBytes := e.flattenByteArrays(encodedTxFieldsBytes)
+	joinedEncodedTxFieldsBytes := e.flattenByteSlices(encodedTxFieldsBytes)
 	rlpEncodedTransaction := e.prefixEncodedTxWithRlpMetadata(joinedEncodedTxFieldsBytes)
-	// maybe decode first bytes according to rsk list format, then use rlp decode for the rest?
 	return rlpEncodedTransaction, nil
 }
 
+// getEncodedTxFieldsBytes returns slice of byte slices, where each represents an encoded transaction field in the
+// following order:
 func (e *RlpTransactionEncoder) getEncodedTxFieldsBytes(rlpTransactionParameters *RlpTransactionParameters) ([][]byte, error) {
 	binaryToAddress, err := hex.DecodeString(strings.Replace(rlpTransactionParameters.ReceiverAddress, "0x", "", 1))
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to get receiver address bytes", err)
 	}
-	// Converting uint64 to bytes is Satan himself, so better work with big.Int when possible
+	// Converting uint64 to bytes proved problematic - preferred big.Int when possible
 	nonceBytes, err := e.encodeBigIntAsUnsigned(e.uint64ToBigInt(rlpTransactionParameters.Nonce))
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP encode nonce", err)
@@ -109,30 +113,36 @@ func (e *RlpTransactionEncoder) getEncodedTxFieldsBytes(rlpTransactionParameters
 	}, nil
 }
 
-// in RSK, the encoded V value also features the chain ID
+// encodeEcdsaSignatureV RLP encodes ECDSA signature's V component.
 func (e *RlpTransactionEncoder) encodeEcdsaSignatureV(chainID, ecdsaSignatureV *big.Int) ([]byte, error) {
-	defaultV := ecdsaSignatureV
-	v := big.NewInt(0)
-	if chainID.Cmp(big.NewInt(0)) != 0 {
-		// TODO: document this correctly (Transaction.java line 464 in node)
-		v = v.
-			Add(v, chainID).
-			Mul(v, big.NewInt(chainIDEncodingMultiplicationModifier)).
-			Add(v, big.NewInt(chainIDEncodingAdditionModifier)).
-			Sub(v, big.NewInt(lowestPossibleV)).
-			Add(v, defaultV)
+	var v *big.Int
+	isChainIDValid := chainID.Cmp(big.NewInt(0)) != 0
+	if isChainIDValid {
+		v = e.encodeChainIDInEcdsaSignatureV(chainID, ecdsaSignatureV)
 	} else {
-		v.Add(v, defaultV)
+		v = new(big.Int)
+		v.SetBytes(ecdsaSignatureV.Bytes())
 	}
-	fmt.Printf("v is %d\n", v)
-	return e.encodeBigInt(ecdsaSignatureV.Abs(v))
+	return e.encodeBigInt(v.Abs(v))
 }
 
-// TODO: move to some math package.
+// encodeChainIDInEcdsaSignatureV encodes chain ID into ECDSA signature's V component.
+func (e *RlpTransactionEncoder) encodeChainIDInEcdsaSignatureV(chainID *big.Int, v *big.Int) *big.Int {
+	vWithEncodedChainId := big.NewInt(0)
+	return vWithEncodedChainId.
+		Add(vWithEncodedChainId, chainID).
+		Mul(vWithEncodedChainId, big.NewInt(chainIDEncodingMultiplicationModifier)).
+		Add(vWithEncodedChainId, big.NewInt(chainIDEncodingAdditionModifier)).
+		Sub(vWithEncodedChainId, big.NewInt(lowestPossibleV)).
+		Add(vWithEncodedChainId, v)
+}
+
+// uint64ToBigInt converts an uint64 to big.Int.
 func (e *RlpTransactionEncoder) uint64ToBigInt(number uint64) *big.Int {
 	return new(big.Int).SetUint64(number)
 }
 
+// encodeBigIntAsUnsigned RLP encodes big.Int as unsigned int.
 func (e *RlpTransactionEncoder) encodeBigIntAsUnsigned(bigInt *big.Int) ([]byte, error) {
 	bytes := bigInt.Bytes()
 	if len(bytes) > 0 && bytes[0] == 0 {
@@ -141,19 +151,22 @@ func (e *RlpTransactionEncoder) encodeBigIntAsUnsigned(bigInt *big.Int) ([]byte,
 	return rlp.EncodeToBytes(bytes)
 }
 
+// encodeBigInt RLP encodes big.Int.
 func (e *RlpTransactionEncoder) encodeBigInt(bigInt *big.Int) ([]byte, error) {
 	bytes := bigInt.Bytes()
 	return rlp.EncodeToBytes(bytes)
 }
 
-func (e *RlpTransactionEncoder) flattenByteArrays(encodedTxFieldsBytes [][]byte) []byte {
-	var joinedEncodedTxFieldsBytes []byte
-	for _, encodedTxFieldBytes := range encodedTxFieldsBytes {
-		joinedEncodedTxFieldsBytes = append(joinedEncodedTxFieldsBytes, encodedTxFieldBytes...)
+// flattenByteSlices flattens byte slices into a single byte slice.
+func (e *RlpTransactionEncoder) flattenByteSlices(byteSlices [][]byte) []byte {
+	var resultingByteSlice []byte
+	for _, byteSlice := range byteSlices {
+		resultingByteSlice = append(resultingByteSlice, byteSlice...)
 	}
-	return joinedEncodedTxFieldsBytes
+	return resultingByteSlice
 }
 
+// prefixEncodedTxWithRlpMetadata adds encoding prefix to RLP encoded transaction fields.
 func (e *RlpTransactionEncoder) prefixEncodedTxWithRlpMetadata(joinedEncodedTxFieldsBytes []byte) []byte {
 	encodedByteAmount := len(joinedEncodedTxFieldsBytes)
 	encodedListPrefix := e.getListEncodingPrefix(uint64(encodedByteAmount))
@@ -161,8 +174,9 @@ func (e *RlpTransactionEncoder) prefixEncodedTxWithRlpMetadata(joinedEncodedTxFi
 	return joinedEncodedTxFieldsBytes
 }
 
+// getListEncodingPrefix returns a prefix indicating that an encoded list is what follows.
 func (e *RlpTransactionEncoder) getListEncodingPrefix(encodedByteAmount uint64) []byte {
-	// TODO: still have to contemplate lists with less than 56 bytes
+	// TODO: contemplate non-list items if deciding to not use geth at all.
 	bytesNeededToRepresentAmount := 0
 	tmp := encodedByteAmount
 	for tmp != 0 {
@@ -181,14 +195,13 @@ func (e *RlpTransactionEncoder) getListEncodingPrefix(encodedByteAmount uint64) 
 	return prefixBytes
 }
 
+// DecodeTransaction RLP decodes a transaction. It uses RSK custom logic - due to the custom prefix bytes, decoding
+// cannot use any geth logic.
 func (e *RlpTransactionEncoder) DecodeTransaction(encodedTransaction []byte) (*RlpTransactionParameters, error) {
 	decodedRlpList, err := e.decodeList(encodedTransaction)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to decode encoded transaction as RLP list", err)
 	}
-	fmt.Println(decodedRlpList)
-
-	// TODO: port logic in Transaction::Transaction(RLPList transaction)
 	elements, err := decodedRlpList.GetElements(e)
 	decodedElementAmount := len(elements)
 	if decodedElementAmount != expectedElementsInRlpEncodedTransaction {
@@ -213,9 +226,8 @@ func (e *RlpTransactionEncoder) DecodeTransaction(encodedTransaction []byte) (*R
 		result.EcdsaSignatureR = r.SetBytes(elements[7].GetData())
 		result.EcdsaSignatureS = s.SetBytes(elements[8].GetData())
 		v := vData[0]
-		// TODO: refactor this way of making a big.Int from a byte (extract to function)
-		result.EcdsaSignatureV = new(big.Int).SetBytes([]byte{e.extractEcdsaVFromEncodedV(v)})
-		result.ChainID = new(big.Int).SetBytes([]byte{e.extractChainIdFromEncodedV(v)})
+		result.EcdsaSignatureV = e.getBigIntFromByte(e.extractEcdsaVFromEncodedV(v))
+		result.ChainID = e.getBigIntFromByte(e.extractChainIdFromEncodedV(v))
 	} else {
 		result.ChainID = big.NewInt(0)
 		log.Info("RLP encoded transaction is not signed")
@@ -246,7 +258,10 @@ func (e *RlpTransactionEncoder) DecodeTransaction(encodedTransaction []byte) (*R
 	return result, nil
 }
 
-// TODO: reorganize, probably move decoding logic to new RlpTransactionDecoder
+func (e *RlpTransactionEncoder) getBigIntFromByte(b byte) *big.Int {
+	return new(big.Int).SetBytes([]byte{b})
+}
+
 func (e *RlpTransactionEncoder) extractEcdsaVFromEncodedV(v byte) byte {
 	if !e.isChainIDEncodedInV(v) {
 		return v
@@ -282,8 +297,9 @@ func (e *RlpTransactionEncoder) bytesToLength(bytes []byte, position, size int) 
 	return length, nil
 }
 
+// decodeList decodes single (non-nested) list from data bytes - fails it any other structure is used.
 func (e *RlpTransactionEncoder) decodeList(data []byte) (*RlpList, error) {
-	decodedEntities, err := e.decode2(data)
+	decodedEntities, err := e.decodeSiblingRlpEntities(data)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to RLP decode entities", err)
 	}
@@ -302,9 +318,8 @@ func (e *RlpTransactionEncoder) decodeList(data []byte) (*RlpList, error) {
 	return list, nil
 }
 
-// runs through data, returning RLP decoded elements - might return multiple lists
-// named decode2 in rskj
-func (e *RlpTransactionEncoder) decode2(data []byte) ([]RlpEntity, error) { // TODO: rename function name
+// decodeSiblingRlpEntities runs through data, returning RLP decoded elements - only decodes at same level or 'height'.
+func (e *RlpTransactionEncoder) decodeSiblingRlpEntities(data []byte) ([]RlpEntity, error) {
 	result := make([]RlpEntity, 0)
 	if data == nil {
 		return result, nil // TODO: test that this happens upon nil byte slice
@@ -322,62 +337,64 @@ func (e *RlpTransactionEncoder) decode2(data []byte) ([]RlpEntity, error) { // T
 	return result, nil
 }
 
-// TODO: refactor
-// returns decoded RLP entity and the index up until which it lasts (in the data byte array)
+// decodeElement returns decoded RLP entity and the index up until which it lasts (in the data byte array).
 func (e *RlpTransactionEncoder) decodeElement(data []byte, position int) (RlpEntity, int, error) {
-	numericFirstByte := data[position] & 0xff
-	isElementAList := numericFirstByte >= minimumListSizeInBytes
+	currentNumericDataByte := data[position] & 0xff
+	isElementAList := currentNumericDataByte >= minimumListSizeInBytes
 	if isElementAList {
-		length, offset, err := e.getListMetadata(data, position, numericFirstByte)
+		list, dataEndIndex, err := e.decodeRlpList(data, position, currentNumericDataByte)
 		if err != nil {
-			return nil, -1, err
-		}
-		dataEndIndex := position + length
-		if dataEndIndex > len(data) {
-			return nil, -1, errors.New("the RLP byte array doesn't have enough space to hold an element with the specified length")
-		}
-		listDataBytes := data[position:dataEndIndex]
-		list := &RlpList{
-			RlpItem: RlpItem{
-				data: listDataBytes,
-			},
-			offset: offset,
+			return nil, -1, fmt.Errorf("%w: failed to decode RLP list", err)
 		}
 		return list, dataEndIndex, nil
 	}
-	if numericFirstByte == emptyMark {
+	if currentNumericDataByte == emptyMark {
 		return &RlpItem{data: []byte{}}, position + 1, nil
 	}
-	if numericFirstByte < emptyMark { // maybe to detect V?
+	// in practice, the following is usually the V component of the ECDSA signature.
+	if currentNumericDataByte < emptyMark {
 		responseData := []byte{data[position]}
 		return &RlpItem{data: responseData}, position + 1, nil
 	}
-	var length, offset int
-	if numericFirstByte > emptyMark+smallRlpListMaxSize { // TODO: disambiguate meaning
-		offset = int(numericFirstByte) - (emptyMark + smallRlpListMaxSize) + 1
-		var err error
-		length, err = e.bytesToLength(data, position+1, offset-1)
-		if err != nil {
-			return nil, -1, fmt.Errorf("%w: failed to determine length of RLP item", err)
-		}
-	} else {
-		length = int(numericFirstByte & 0x7f) // TODO: disambiguate meaning
-		offset = 1
+	length, offset, err := e.getRlpItemMetadata(data, position, currentNumericDataByte)
+	if err != nil {
+		return nil, -1, fmt.Errorf("%w: failed to get RLP item metadata", err)
 	}
-	if uint32(length) > math.MaxUint32 {
-		return nil, -1, errors.New("the current implementation doesn't support lengths longer than 0x7fffffff due to node limitations")
+
+	err = e.validateRlpItem(data, position, length, offset)
+	if err != nil {
+		return nil, -1, fmt.Errorf("%w: RLP item is invalid", err)
 	}
-	if position+offset+length < 0 || position+offset+length > len(data) {
-		return nil, -1, errors.New("the RLP byte array doesn't have enough space to hold an element with the specified length")
-	}
+
 	decoded := make([]byte, length)
 	copy(decoded, data[position+offset:position+offset+length])
 	return &RlpItem{data: decoded}, position + offset + length, nil
 }
 
-func (e *RlpTransactionEncoder) getListMetadata(data []byte, position int, numericFirstByte byte) (int, int, error) {
-	var length, offset int
-	isSmallList := numericFirstByte <= minimumListSizeInBytes+smallRlpListMaxSize
+// decodeRlpList returns a decoded RLP list, indicating where it ends (in the data bytes).
+func (e *RlpTransactionEncoder) decodeRlpList(data []byte, position int, currentNumericDataByte byte) (rlpList *RlpList,
+	listEndIndex int, err error) {
+	length, offset, err := e.getListMetadata(data, position, currentNumericDataByte)
+	if err != nil {
+		return nil, -1, fmt.Errorf("%w: failed to get list metadata", err)
+	}
+	dataEndIndex := position + length
+	if dataEndIndex > len(data) {
+		return nil, -1, errors.New("the RLP byte array doesn't have enough space to hold an element with the specified length")
+	}
+	listDataBytes := data[position:dataEndIndex]
+	list := &RlpList{
+		RlpItem: RlpItem{
+			data: listDataBytes,
+		},
+		offset: offset,
+	}
+	return list, dataEndIndex, nil
+}
+
+// getListMetadata obtains metadata for RLP list.
+func (e *RlpTransactionEncoder) getListMetadata(data []byte, position int, numericFirstByte byte) (length, offset int, err error) {
+	isSmallList := numericFirstByte <= minimumListSizeInBytes+smallRlpItemMaxSize
 	if isSmallList {
 		length = int(numericFirstByte-minimumListSizeInBytes) + 1
 		offset = 1
@@ -385,12 +402,48 @@ func (e *RlpTransactionEncoder) getListMetadata(data []byte, position int, numer
 		bytesNeededToRepresentAmount := int(numericFirstByte - rlpEncodingPrefixBaseNumber)
 		amountOfEncodedDataBytes, err := e.bytesToLength(data, position+1, bytesNeededToRepresentAmount)
 		if err != nil {
-			return 0, 0, fmt.Errorf("%w: failed to determine amount of encoded data bytes", err)
+			err = fmt.Errorf("%w: failed to determine amount of encoded data bytes", err)
+			return -1, -1, err
 		}
 		length = 1 + int(bytesNeededToRepresentAmount) + amountOfEncodedDataBytes
 		offset = 1 + bytesNeededToRepresentAmount
 	}
-	return length, offset, nil
+	return
+}
+
+// getRlpItemMetadata returns length and offset or RLP item being decoded.
+func (e *RlpTransactionEncoder) getRlpItemMetadata(data []byte, position int, numericFirstByte byte) (length, offset int, err error) {
+	isBigRlpItem := numericFirstByte > emptyMark+smallRlpItemMaxSize
+	if isBigRlpItem {
+		offset = int(numericFirstByte) - (emptyMark + smallRlpItemMaxSize) + 1
+		length, err = e.bytesToLength(data, position+1, offset-1)
+		if err != nil {
+			return -1, -1, fmt.Errorf("%w: failed to determine length of RLP item", err)
+		}
+	} else {
+		length = int(numericFirstByte & smallRlpItemMask)
+		offset = 1
+	}
+	return
+}
+
+// validateRlpItem validates RLP item (its length, and that it has enough space to encode what it pretends to encode).
+func (e *RlpTransactionEncoder) validateRlpItem(data []byte, position int, length int, offset int) error {
+	isRlpItemBiggerThanExpected := uint32(length) > math.MaxUint32
+	if isRlpItemBiggerThanExpected {
+		return errors.New("the current implementation doesn't support lengths longer than 0x7fffffff due to node limitations")
+	}
+	if position+offset+length < 0 || position+offset+length > len(data) {
+		return errors.New("the RLP byte array doesn't have enough space to hold an element with the specified length")
+	}
+	return nil
+}
+
+type RlpEntity interface {
+	IsList() bool
+	GetData() []byte
+	GetOffset() int
+	GetElements(*RlpTransactionEncoder) ([]RlpEntity, error)
 }
 
 type RlpItem struct {
@@ -447,19 +500,12 @@ func (l *RlpList) initializeElements(rlpTransactionEncoder *RlpTransactionEncode
 	data := l.GetData()
 	content := make([]byte, len(data)-l.GetOffset())
 	copy(content, data[l.GetOffset():])
-	// Since there are no nested lists (there's some sort of check when determining that this is a list - it assures no nesting),
-	// we can safely assume that decode2 will return the leaf elements of the list.
-	decodedContent, err := rlpTransactionEncoder.decode2(content)
+	// Since there are no nested lists (when decoding a list initially, an error occurs if multiple or nested lists appear),
+	// we can safely assume that decodeSiblingRlpEntities will return the leaf elements of the list.
+	decodedContent, err := rlpTransactionEncoder.decodeSiblingRlpEntities(content)
 	if err != nil {
 		return fmt.Errorf("%w: failed to decode list content", err)
 	}
 	l.elements = decodedContent
 	return nil
-}
-
-type RlpEntity interface {
-	IsList() bool
-	GetData() []byte
-	GetOffset() int
-	GetElements(*RlpTransactionEncoder) ([]RlpEntity, error)
 }
