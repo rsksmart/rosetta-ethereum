@@ -1261,7 +1261,6 @@ func TestBlock_623431(t *testing.T) {
 	remascTxHash := "0xdffb195fcc5aa078e0fe2c4278be71f6fa968583604d5e58c77ad7dfdb95cbf4"
 	transferTxDestinationHash := "0x73ded52bf85f28a323e6b96d3a7341f3c65d2dbd"
 
-
 	mockJSONRPC := &mocks.JSONRPC{}
 	c := &Client{
 		c:       mockJSONRPC,
@@ -1597,26 +1596,24 @@ func TestSendTransaction(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
+	signedRawTransaction := "0xf86a80843b9aca00825208941ff502f9fe838cd772874cb67d0d96b93fd1d6d78725d4b6199a415d8029a01d110bf9fd468f7d00b3ce530832e99818835f45e9b08c66f8d9722264bb36c7a02711f47ec99f9ac585840daef41b7118b52ec72f02fcb30d874d36b10b668b59"
+
 	mockJSONRPC.On(
 		"CallContext",
 		ctx,
 		mock.Anything,
 		"eth_sendRawTransaction",
-		"0xf86a80843b9aca00825208941ff502f9fe838cd772874cb67d0d96b93fd1d6d78725d4b6199a415d8029a01d110bf9fd468f7d00b3ce530832e99818835f45e9b08c66f8d9722264bb36c7a02711f47ec99f9ac585840daef41b7118b52ec72f02fcb30d874d36b10b668b59", // nolint
+		signedRawTransaction, // nolint
 	).Return(
 		nil,
 	).Once()
 
-	rawTx, err := ioutil.ReadFile("testdata/submitted_tx.json")
-	assert.NoError(t, err)
-
-	tx := new(types.Transaction)
-	assert.NoError(t, tx.UnmarshalJSON(rawTx))
-
-	assert.NoError(t, c.SendTransaction(
+	_, err := c.SendTransaction(
 		ctx,
-		tx,
-	))
+		signedRawTransaction,
+	)
+	assert.Nil(t, err)
 
 	mockJSONRPC.AssertExpectations(t)
 }

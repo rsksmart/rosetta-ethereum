@@ -18,12 +18,12 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rsksmart/rosetta-rsk/configuration"
 	servicesMocks "github.com/rsksmart/rosetta-rsk/mocks/services"
 	"github.com/rsksmart/rosetta-rsk/rsk"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"math/big"
 	"testing"
 
@@ -265,20 +265,20 @@ func TestConstructionService(t *testing.T) {
 		Transaction:       signedRaw,
 	})
 	assert.Nil(t, err)
-	DELETETHIS := &types.ConstructionParseResponse{
+	assert.Equal(t, &types.ConstructionParseResponse{
 		Operations: parseOps,
 		AccountIdentifierSigners: []*types.AccountIdentifier{
 			{Address: "0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62"},
 		},
 		Metadata: forceMarshalMap(t, parseMetadata),
-	}
-	bla := parseSignedResponse.AccountIdentifierSigners[0].Address
-	fmt.Printf("wanted: %s, got: %s\n", "0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62", bla)
-	assert.Equal(t, DELETETHIS, parseSignedResponse)
+	}, parseSignedResponse)
 
 	// Test Hash
+
+	transactionHash := "0x3f460547917c80bcd6478aa591034f0300193845503b077d94f4e7a222f0a6be"
+
 	transactionIdentifier := &types.TransactionIdentifier{
-		Hash: "0x945153c18fedea059bac8c393714399611683212a5e419eae6c66e210cc6ece2",
+		Hash: transactionHash,
 	}
 	hashResponse, err := service.ConstructionHash(ctx, &types.ConstructionHashRequest{
 		NetworkIdentifier: networkServiceNetworkIdentifier,
@@ -289,22 +289,22 @@ func TestConstructionService(t *testing.T) {
 		TransactionIdentifier: transactionIdentifier,
 	}, hashResponse)
 
-	//// Test Submit
-	//mockClient.On(
-	//	"SendTransaction",
-	//	ctx,
-	//	mock.Anything, // can't test ethTx here because it contains "time"
-	//).Return(
-	//	nil,
-	//)
-	//submitResponse, err := service.ConstructionSubmit(ctx, &types.ConstructionSubmitRequest{
-	//	NetworkIdentifier: networkServiceNetworkIdentifier,
-	//	SignedTransaction: signedRaw,
-	//})
-	//assert.Nil(t, err)
-	//assert.Equal(t, &types.TransactionIdentifierResponse{
-	//	TransactionIdentifier: transactionIdentifier,
-	//}, submitResponse)
-	//
-	//mockClient.AssertExpectations(t)
+	// Test Submit
+
+	mockClient.On(
+		"SendTransaction",
+		ctx,
+		mock.Anything,
+	).Return(
+		transactionHash, nil,
+	)
+	submitResponse, err := service.ConstructionSubmit(ctx, &types.ConstructionSubmitRequest{
+		NetworkIdentifier: networkServiceNetworkIdentifier,
+		SignedTransaction: signedRaw,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, &types.TransactionIdentifierResponse{
+		TransactionIdentifier: transactionIdentifier,
+	}, submitResponse)
+	mockClient.AssertExpectations(t)
 }

@@ -32,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -160,11 +159,6 @@ func (ec *Client) PendingNonceAt(ctx context.Context, account common.Address) (u
 // SuggestGasPrice retrieves the currently suggested gas price to allow a timely
 // execution of a transaction.
 func (ec *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
-	// TODO: remove commented code
-	//var hexStr string
-	//if err := ec.c.CallContext(ctx, &hexStr, EthGasPriceMethod); err != nil {
-	//	return nil, err
-	//}
 	var hex hexutil.Big
 	if err := ec.c.CallContext(ctx, &hex, EthGasPriceMethod); err != nil {
 		return nil, err
@@ -200,12 +194,13 @@ func (ec *Client) peers(ctx context.Context) ([]*RosettaTypes.Peer, error) {
 //
 // If the transaction was a contract creation use the TransactionReceipt method to get the
 // contract address after the transaction has been mined.
-func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) error {
-	data, err := rlp.EncodeToBytes(tx)
+func (ec *Client) SendTransaction(ctx context.Context, transactionHash string) (string, error) {
+	var result string
+	err := ec.c.CallContext(ctx, &result, EthSendRawTransactionMethod, transactionHash)
 	if err != nil {
-		return err
+		return "", fmt.Errorf("%w: failed to send raw transaction %s", err, transactionHash)
 	}
-	return ec.c.CallContext(ctx, nil, EthSendRawTransactionMethod, hexutil.Encode(data))
+	return result, nil
 }
 
 func toBlockNumArg(number *big.Int) string {

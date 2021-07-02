@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -33,7 +34,10 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
-const HexadecimalPrefix = "0x"
+const (
+	HexadecimalPrefix  = "0x"
+	minimumEcdsaVValue = 27
+)
 
 // ConstructionAPIService implements the server.ConstructionAPIServicer interface.
 type ConstructionAPIService struct {
@@ -369,16 +373,14 @@ func (s *ConstructionAPIService) ConstructionHash(
 	ctx context.Context,
 	request *types.ConstructionHashRequest,
 ) (*types.TransactionIdentifierResponse, *types.Error) {
-	signedTx := ethTypes.Transaction{}
-	if err := signedTx.UnmarshalJSON([]byte(request.SignedTransaction)); err != nil {
-		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
+	transactionBytes, err := hex.DecodeString(request.SignedTransaction)
+	if err != nil {
+		return nil, wrapErr(ErrCallParametersInvalid, fmt.Errorf("%w: signed transaction should be a hex string", err))
 	}
-
-	hash := signedTx.Hash().Hex()
-
+	transactionHash := crypto.Keccak256(transactionBytes)
 	return &types.TransactionIdentifierResponse{
 		TransactionIdentifier: &types.TransactionIdentifier{
-			Hash: hash,
+			Hash: fmt.Sprintf("0x%x", transactionHash),
 		},
 	}, nil
 }
@@ -405,45 +407,10 @@ func (s *ConstructionAPIService) ConstructionParse(
 			return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 		}
 
-		ecdsaSignatureVNumeric := decodedTransaction.EcdsaSignatureV.Int64() - 27
-
-		hexSignature := fmt.Sprintf("%x%x%02x", decodedTransaction.EcdsaSignatureR, decodedTransaction.EcdsaSignatureS,
-			ecdsaSignatureVNumeric) // TODO: fix last bytes
-		signatureBytes, err := hex.DecodeString(hexSignature)
+		senderAddress, err := s.deriveSenderAddressFromDecodedTransaction(decodedTransaction, err)
 		if err != nil {
-			return nil, wrapErr(ErrSignatureInvalid, fmt.Errorf("signature 0x%s is not valid", hexSignature))
+			return nil, wrapErr(ErrUnableToParseIntermediateResult, fmt.Errorf("%w: failed to derive sender address from decoded transaction", err))
 		}
-
-		encodedRawTransaction, err := s.transactionEncoder.EncodeRawTransaction(&rsk.RlpTransactionParameters{
-			Nonce:           decodedTransaction.Nonce,
-			Gas:             new(big.Int).SetBytes(decodedTransaction.Gas.Bytes()),
-			GasPrice:        new(big.Int).SetBytes(decodedTransaction.GasPrice.Bytes()),
-			ReceiverAddress: decodedTransaction.ReceiverAddress,
-			Value:           new(big.Int).SetBytes(decodedTransaction.Value.Bytes()),
-			Data:            decodedTransaction.Data,
-			EcdsaSignatureV: new(big.Int).SetBytes(decodedTransaction.EcdsaSignatureV.Bytes()),
-			EcdsaSignatureR: new(big.Int).SetBytes(decodedTransaction.EcdsaSignatureR.Bytes()),
-			EcdsaSignatureS: new(big.Int).SetBytes(decodedTransaction.EcdsaSignatureS.Bytes()),
-			ChainID:         new(big.Int).SetBytes(decodedTransaction.ChainID.Bytes()),
-		})
-		keccak256EncodedRawTransaction := crypto.Keccak256(encodedRawTransaction)
-
-		pubKeyBytes, err := secp256k1.RecoverPubkey(keccak256EncodedRawTransaction, signatureBytes) // public key is correct
-
-		// TODO: apply keccak256 and omit 12 bytes
-		senderAddressBytes := crypto.Keccak256(pubKeyBytes[1:])[12:]
-
-		senderAddress, ok := rsk.ChecksumAddress(fmt.Sprintf("0x%x", senderAddressBytes))
-		if !ok {
-			return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("failed to checksum address"))
-		}
-
-		//fmt.Println(fmt.Sprintf("encoded raw tx: %x\nraw hash: %s\nr: %x\ns: %x\nv: %x\nsignature bytes: %x\nsender address: %x\n"+
-		//	"public key: %x\n",
-		//	encodedRawTransaction, rawHash, decodedTransaction.EcdsaSignatureR,
-		//	decodedTransaction.EcdsaSignatureS, decodedTransaction.EcdsaSignatureV, signatureBytes, pubKeyBytes,
-		//	senderAddress))
-
 
 		tx.To = decodedTransaction.ReceiverAddress
 		tx.Value = decodedTransaction.Value
@@ -532,6 +499,72 @@ func (s *ConstructionAPIService) ConstructionParse(
 	return resp, nil
 }
 
+func (s *ConstructionAPIService) deriveSenderAddressFromDecodedTransaction(decodedTransaction *rsk.RlpTransactionParameters, err error) (string, error) {
+	recoveryIDFromEcdsaVComponent := decodedTransaction.EcdsaSignatureV.Int64() - minimumEcdsaVValue
+	hexSignature := fmt.Sprintf("%x%x%02x", decodedTransaction.EcdsaSignatureR, decodedTransaction.EcdsaSignatureS,
+		recoveryIDFromEcdsaVComponent)
+	signatureBytes, err := hex.DecodeString(hexSignature)
+	if err != nil {
+		return "", errors.New("signature is not valid")
+	}
+	publicKeyBytes, err := s.getCompressedPublicKeyFromTransactionAndSignature(decodedTransaction, signatureBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to get compressed public key from transaction and signature")
+	}
+	senderAddress, err := s.getSenderAddressFromCompressedPublicKey(publicKeyBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to get sender address from public key")
+	}
+	return senderAddress, nil
+}
+
+// getSenderAddressFromCompressedPublicKey derives sender address from compressed public key.
+func (s *ConstructionAPIService) getSenderAddressFromCompressedPublicKey(compressedPublicKeyBytes []byte) (string, error) {
+	senderAddressBytes := s.keccak256Omitting12FirstBytes(compressedPublicKeyBytes)
+	senderAddress, ok := rsk.ChecksumAddress(fmt.Sprintf("0x%x", senderAddressBytes))
+	if !ok {
+		return "", fmt.Errorf("failed to checksum address")
+	}
+	return senderAddress, nil
+}
+
+// getCompressedPublicKeyFromTransactionAndSignature derives compressed public key from transaction and signature.
+func (s *ConstructionAPIService) getCompressedPublicKeyFromTransactionAndSignature(decodedTransaction *rsk.RlpTransactionParameters,
+	signatureBytes []byte) ([]byte, error) {
+	encodedRawTransaction, err := s.transactionEncoder.EncodeRawTransaction(s.copyRlpTransactionParameters(decodedTransaction))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get raw encoded transaction from RLP transaction parameters")
+	}
+	keccak256EncodedRawTransaction := crypto.Keccak256(encodedRawTransaction)
+	publicKeyBytes, err := secp256k1.RecoverPubkey(keccak256EncodedRawTransaction, signatureBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to recover public key from encoded raw transaction encoded with keccak256")
+	}
+	return publicKeyBytes, nil
+}
+
+// copyRlpTransactionParameters creates new instance of RlpTransactionParameters copying the original.
+func (s *ConstructionAPIService) copyRlpTransactionParameters(decodedTransaction *rsk.RlpTransactionParameters) *rsk.RlpTransactionParameters {
+	return &rsk.RlpTransactionParameters{
+		Nonce:           decodedTransaction.Nonce,
+		Gas:             new(big.Int).SetBytes(decodedTransaction.Gas.Bytes()),
+		GasPrice:        new(big.Int).SetBytes(decodedTransaction.GasPrice.Bytes()),
+		ReceiverAddress: decodedTransaction.ReceiverAddress,
+		Value:           new(big.Int).SetBytes(decodedTransaction.Value.Bytes()),
+		Data:            decodedTransaction.Data,
+		EcdsaSignatureV: new(big.Int).SetBytes(decodedTransaction.EcdsaSignatureV.Bytes()),
+		EcdsaSignatureR: new(big.Int).SetBytes(decodedTransaction.EcdsaSignatureR.Bytes()),
+		EcdsaSignatureS: new(big.Int).SetBytes(decodedTransaction.EcdsaSignatureS.Bytes()),
+		ChainID:         new(big.Int).SetBytes(decodedTransaction.ChainID.Bytes()),
+	}
+}
+
+// keccak256Omitting12FirstBytes applies Keccak256 to all but the first byte of what's passed, then omits 12 first bytes
+// of the result. This is intended for address calculations in RSK.
+func (s *ConstructionAPIService) keccak256Omitting12FirstBytes(bytes []byte) []byte {
+	return crypto.Keccak256(bytes[1:])[12:]
+}
+
 // ConstructionSubmit implements the /construction/submit endpoint.
 func (s *ConstructionAPIService) ConstructionSubmit(
 	ctx context.Context,
@@ -540,24 +573,21 @@ func (s *ConstructionAPIService) ConstructionSubmit(
 	if s.config.Mode != configuration.Online {
 		return nil, ErrUnavailableOffline
 	}
-
-	var signedTx ethTypes.Transaction
-	if err := signedTx.UnmarshalJSON([]byte(request.SignedTransaction)); err != nil {
-		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
+	request.SignedTransaction = strings.Replace(request.SignedTransaction, "0x", "", -1)
+	signedTransactionBytes, err := hex.DecodeString(request.SignedTransaction)
+	if err != nil {
+		return nil, wrapErr(ErrCallParametersInvalid, fmt.Errorf("%w: signed transaction should be a hex string", err))
 	}
-
-	if err := s.client.SendTransaction(ctx, &signedTx); err != nil {
-		return nil, wrapErr(ErrBroadcastFailed, err)
+	signedTransactionHexStr := fmt.Sprintf("0x%x", signedTransactionBytes)
+	result, err := s.client.SendTransaction(ctx, signedTransactionHexStr)
+	if err != nil {
+		return nil, wrapErr(ErrBroadcastFailed, fmt.Errorf("%w: failed to send transaction", err))
 	}
-
-	txIdentifier := &types.TransactionIdentifier{
-		Hash: signedTx.Hash().Hex(),
+	_, err = hex.DecodeString(strings.Replace(result, "0x", "", -1))
+	if err != nil {
+		return nil, wrapErr(ErrCallParametersInvalid, fmt.Errorf("%w: returned transaction hash was invalid", err))
 	}
 	return &types.TransactionIdentifierResponse{
-		TransactionIdentifier: txIdentifier,
+		TransactionIdentifier: &types.TransactionIdentifier{Hash: result},
 	}, nil
-}
-
-func (s *ConstructionAPIService) getSenderAddressFromPublicKey(publicKey []byte) ([]byte, error) {
-	return nil, nil
 }
