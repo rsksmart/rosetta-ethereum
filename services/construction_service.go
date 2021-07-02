@@ -19,18 +19,21 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/rsksmart/rosetta-rsk/configuration"
 	"github.com/rsksmart/rosetta-rsk/rsk"
 	"math/big"
 	"strconv"
-
-	"github.com/ethereum/go-ethereum/common"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
+	"strings"
 
 	"github.com/coinbase/rosetta-sdk-go/parser"
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
+
+const HexadecimalPrefix = "0x"
 
 // ConstructionAPIService implements the server.ConstructionAPIServicer interface.
 type ConstructionAPIService struct {
@@ -357,7 +360,7 @@ func (s *ConstructionAPIService) ConstructionCombine(
 		return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 	}
 	return &types.ConstructionCombineResponse{
-		SignedTransaction: fmt.Sprintf("0x%s", encodedTxHex),
+		SignedTransaction: encodedTxHex,
 	}, nil
 }
 
@@ -392,26 +395,64 @@ func (s *ConstructionAPIService) ConstructionParse(
 			return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 		}
 	} else {
-		t := new(ethTypes.Transaction)
-		err := t.UnmarshalJSON([]byte(request.Transaction))
+		request.Transaction = strings.Replace(request.Transaction, HexadecimalPrefix, "", -1)
+		transactionBytes, err := hex.DecodeString(request.Transaction)
+		if err != nil {
+			return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
+		}
+		decodedTransaction, err := s.transactionEncoder.DecodeTransaction(transactionBytes)
 		if err != nil {
 			return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
 		}
 
-		tx.To = t.To().String()
-		tx.Value = t.Value()
-		tx.Input = t.Data()
-		tx.Nonce = t.Nonce()
-		tx.GasPrice = t.GasPrice()
-		tx.GasLimit = t.Gas()
-		tx.ChainID = t.ChainId()
+		ecdsaSignatureVNumeric := decodedTransaction.EcdsaSignatureV.Int64() - 27
 
-		msg, err := t.AsMessage(ethTypes.NewEIP155Signer(t.ChainId()))
+		hexSignature := fmt.Sprintf("%x%x%02x", decodedTransaction.EcdsaSignatureR, decodedTransaction.EcdsaSignatureS,
+			ecdsaSignatureVNumeric) // TODO: fix last bytes
+		signatureBytes, err := hex.DecodeString(hexSignature)
 		if err != nil {
-			return nil, wrapErr(ErrUnableToParseIntermediateResult, err)
+			return nil, wrapErr(ErrSignatureInvalid, fmt.Errorf("signature 0x%s is not valid", hexSignature))
 		}
 
-		tx.From = msg.From().Hex()
+		encodedRawTransaction, err := s.transactionEncoder.EncodeRawTransaction(&rsk.RlpTransactionParameters{
+			Nonce:           decodedTransaction.Nonce,
+			Gas:             new(big.Int).SetBytes(decodedTransaction.Gas.Bytes()),
+			GasPrice:        new(big.Int).SetBytes(decodedTransaction.GasPrice.Bytes()),
+			ReceiverAddress: decodedTransaction.ReceiverAddress,
+			Value:           new(big.Int).SetBytes(decodedTransaction.Value.Bytes()),
+			Data:            decodedTransaction.Data,
+			EcdsaSignatureV: new(big.Int).SetBytes(decodedTransaction.EcdsaSignatureV.Bytes()),
+			EcdsaSignatureR: new(big.Int).SetBytes(decodedTransaction.EcdsaSignatureR.Bytes()),
+			EcdsaSignatureS: new(big.Int).SetBytes(decodedTransaction.EcdsaSignatureS.Bytes()),
+			ChainID:         new(big.Int).SetBytes(decodedTransaction.ChainID.Bytes()),
+		})
+		keccak256EncodedRawTransaction := crypto.Keccak256(encodedRawTransaction)
+
+		pubKeyBytes, err := secp256k1.RecoverPubkey(keccak256EncodedRawTransaction, signatureBytes) // public key is correct
+
+		// TODO: apply keccak256 and omit 12 bytes
+		senderAddressBytes := crypto.Keccak256(pubKeyBytes[1:])[12:]
+
+		senderAddress, ok := rsk.ChecksumAddress(fmt.Sprintf("0x%x", senderAddressBytes))
+		if !ok {
+			return nil, wrapErr(ErrInvalidAddress, fmt.Errorf("failed to checksum address"))
+		}
+
+		//fmt.Println(fmt.Sprintf("encoded raw tx: %x\nraw hash: %s\nr: %x\ns: %x\nv: %x\nsignature bytes: %x\nsender address: %x\n"+
+		//	"public key: %x\n",
+		//	encodedRawTransaction, rawHash, decodedTransaction.EcdsaSignatureR,
+		//	decodedTransaction.EcdsaSignatureS, decodedTransaction.EcdsaSignatureV, signatureBytes, pubKeyBytes,
+		//	senderAddress))
+
+
+		tx.To = decodedTransaction.ReceiverAddress
+		tx.Value = decodedTransaction.Value
+		tx.Input = decodedTransaction.Data
+		tx.Nonce = decodedTransaction.Nonce
+		tx.GasPrice = decodedTransaction.GasPrice
+		tx.GasLimit = decodedTransaction.Gas.Uint64()
+		tx.ChainID = decodedTransaction.ChainID
+		tx.From = senderAddress
 	}
 
 	// Ensure valid from address
@@ -515,4 +556,8 @@ func (s *ConstructionAPIService) ConstructionSubmit(
 	return &types.TransactionIdentifierResponse{
 		TransactionIdentifier: txIdentifier,
 	}, nil
+}
+
+func (s *ConstructionAPIService) getSenderAddressFromPublicKey(publicKey []byte) ([]byte, error) {
+	return nil, nil
 }
