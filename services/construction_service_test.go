@@ -23,6 +23,7 @@ import (
 	servicesMocks "github.com/rsksmart/rosetta-rsk/mocks/services"
 	"github.com/rsksmart/rosetta-rsk/rsk"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"math/big"
 	"testing"
 
@@ -226,25 +227,25 @@ func TestConstructionService(t *testing.T) {
 	// Test Combine
 	signaturesRaw := `
 [{
-   "hex_bytes": "84007fdcb62e921eaedc37f7d6eab8c7290f29bf994a21642e1bf16631aef1c33fe112900a4dcebbeda46537c301f39ce7e02e0d7a063ce0bd878dbb21c7f50d1b",
-   "signing_payload": {
-       "address": "0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62",
-       "account_identifier": {
-           "address": "0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62"
-       },
-       "signature_type": "ecdsa_recovery"
-   },
-   "public_key": {
-       "hex_bytes": "0289bb7fd6d12364a42106347bfdddc63018246c5953fa0bf81d2403f2e25a0dda",
-       "curve_type": "secp256k1"
-   },
-   "signature_type": "ecdsa_recovery"
+  "hex_bytes": "84007fdcb62e921eaedc37f7d6eab8c7290f29bf994a21642e1bf16631aef1c33fe112900a4dcebbeda46537c301f39ce7e02e0d7a063ce0bd878dbb21c7f50d1b",
+  "signing_payload": {
+      "address": "0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62",
+      "account_identifier": {
+          "address": "0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62"
+      },
+      "signature_type": "ecdsa_recovery"
+  },
+  "public_key": {
+      "hex_bytes": "0289bb7fd6d12364a42106347bfdddc63018246c5953fa0bf81d2403f2e25a0dda",
+      "curve_type": "secp256k1"
+  },
+  "signature_type": "ecdsa_recovery"
 }]
 `
 	var signatures []*types.Signature
 	assert.NoError(t, json.Unmarshal([]byte(signaturesRaw), &signatures))
 	// TODO: mockear salida de transaction encoder
-	signedRaw := "0xf86b018504a817c800825208946e88dd4c85edde75ae906f6165cec292794fc8d9872386f26fc10000801ba084007fdcb62e921eaedc37f7d6eab8c7290f29bf994a21642e1bf16631aef1c3a03fe112900a4dcebbeda46537c301f39ce7e02e0d7a063ce0bd878dbb21c7f50d"
+	signedRaw := "f86b018504a817c800825208946e88dd4c85edde75ae906f6165cec292794fc8d9872386f26fc100008061a084007fdcb62e921eaedc37f7d6eab8c7290f29bf994a21642e1bf16631aef1c3a03fe112900a4dcebbeda46537c301f39ce7e02e0d7a063ce0bd878dbb21c7f50d"
 
 	combineResponse, err := service.ConstructionCombine(ctx, &types.ConstructionCombineRequest{
 		NetworkIdentifier:   constructionServiceNetworkIdentifier,
@@ -258,56 +259,52 @@ func TestConstructionService(t *testing.T) {
 
 	// Test Parse Signed
 
-	//parseSignedResponse, err := service.ConstructionParse(ctx, &types.ConstructionParseRequest{
-	//	NetworkIdentifier: constructionServiceNetworkIdentifier,
-	//	Signed:            true,
-	//	Transaction:       signedRaw,
-	//})
-	//assert.Nil(t, err)
-	//// rsk signer: 0xc6d824659A0F21754939F2947D4BEe343e8e8Dd4
-	//// eip155 signer: 0xc6d824659A0F21754939F2947D4BEe343e8e8Dd4
-	//// TODO: el problema no está en el parseo, sino en el firmado
-	//DELETETHIS := &types.ConstructionParseResponse{
-	//	Operations: parseOps,
-	//	AccountIdentifierSigners: []*types.AccountIdentifier{
-	//		{Address: "0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62"},
-	//	},
-	//	Metadata: forceMarshalMap(t, parseMetadata),
-	//}
-	//bla := parseSignedResponse.AccountIdentifierSigners[0].Address
-	//fmt.Printf("wanted: %s, got: %s\n", "0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62", bla)
-	//assert.Equal(t, DELETETHIS, parseSignedResponse)
+	parseSignedResponse, err := service.ConstructionParse(ctx, &types.ConstructionParseRequest{
+		NetworkIdentifier: constructionServiceNetworkIdentifier,
+		Signed:            true,
+		Transaction:       signedRaw,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, &types.ConstructionParseResponse{
+		Operations: parseOps,
+		AccountIdentifierSigners: []*types.AccountIdentifier{
+			{Address: "0x0f265E792F8F937Ed4f505a040a1Bdb672f48e62"},
+		},
+		Metadata: forceMarshalMap(t, parseMetadata),
+	}, parseSignedResponse)
 
-	//// Test Hash
-	//transactionIdentifier := &types.TransactionIdentifier{
-	//	Hash: "0x945153c18fedea059bac8c393714399611683212a5e419eae6c66e210cc6ece2",
-	//}
-	////TODO: el hash sirve para ver que estas formateando bien el objeto
-	//hashResponse, err := service.ConstructionHash(ctx, &types.ConstructionHashRequest{
-	//	NetworkIdentifier: networkServiceNetworkIdentifier,
-	//	SignedTransaction: signedRaw,
-	//})
-	//assert.Nil(t, err)
-	//assert.Equal(t, &types.TransactionIdentifierResponse{
-	//	TransactionIdentifier: transactionIdentifier,
-	//}, hashResponse)
-	//
-	//// Test Submit
-	//mockClient.On(
-	//	"SendTransaction",
-	//	ctx,
-	//	mock.Anything, // can't test ethTx here because it contains "time"
-	//).Return(
-	//	nil,
-	//)
-	//submitResponse, err := service.ConstructionSubmit(ctx, &types.ConstructionSubmitRequest{
-	//	NetworkIdentifier: networkServiceNetworkIdentifier,
-	//	SignedTransaction: signedRaw,
-	//})
-	//assert.Nil(t, err)
-	//assert.Equal(t, &types.TransactionIdentifierResponse{
-	//	TransactionIdentifier: transactionIdentifier,
-	//}, submitResponse)
-	//
-	//mockClient.AssertExpectations(t)
+	// Test Hash
+
+	transactionHash := "0x3f460547917c80bcd6478aa591034f0300193845503b077d94f4e7a222f0a6be"
+
+	transactionIdentifier := &types.TransactionIdentifier{
+		Hash: transactionHash,
+	}
+	hashResponse, err := service.ConstructionHash(ctx, &types.ConstructionHashRequest{
+		NetworkIdentifier: networkServiceNetworkIdentifier,
+		SignedTransaction: signedRaw,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, &types.TransactionIdentifierResponse{
+		TransactionIdentifier: transactionIdentifier,
+	}, hashResponse)
+
+	// Test Submit
+
+	mockClient.On(
+		"SendTransaction",
+		ctx,
+		mock.Anything,
+	).Return(
+		transactionHash, nil,
+	)
+	submitResponse, err := service.ConstructionSubmit(ctx, &types.ConstructionSubmitRequest{
+		NetworkIdentifier: networkServiceNetworkIdentifier,
+		SignedTransaction: signedRaw,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, &types.TransactionIdentifierResponse{
+		TransactionIdentifier: transactionIdentifier,
+	}, submitResponse)
+	mockClient.AssertExpectations(t)
 }
