@@ -24,7 +24,6 @@ import (
 	"github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 // Client is used by the servicers to get block
@@ -54,12 +53,7 @@ type Client interface {
 
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
 
-	SendTransaction(ctx context.Context, tx *ethTypes.Transaction) error
-
-	Call(
-		ctx context.Context,
-		request *types.CallRequest,
-	) (*types.CallResponse, error)
+	SendTransaction(ctx context.Context, transactionHash string) (string, error)
 }
 
 type options struct {

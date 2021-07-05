@@ -32,15 +32,11 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
-	"golang.org/x/sync/semaphore"
 )
 
 const (
-	gethHTTPTimeout = 120 * time.Second
-
-	maxTraceConcurrency                           = int64(16) // nolint:gomnd
+	rskjHTTPTimeout                               = 120 * time.Second
 	HexadecimalBitSize                            = 64
 	HexadecimalBase                               = 0 // 0 forces strconv to use the "0x" prefix to determine base.
 	HexadecimalPrefix                             = "0x"
@@ -55,7 +51,13 @@ const (
 	EthSyncingMethod                              = "eth_syncing"
 	EthGetBalanceMethod                           = "eth_getBalance"
 	EthCallMethod                                 = "eth_call"
+	DebugTraceTransaction                         = "debug_traceTransaction"
 	EncodedAccountBalanceFunctionCallPrefixFormat = "0x70a08231000000000000000000000000%s"
+)
+
+var (
+	operationSuccessStatus = "SUCCESS"
+	operationFailureStatus = "FAILURE"
 )
 
 // Client allows for querying a set of specific Ethereum endpoints in an
@@ -64,21 +66,20 @@ const (
 //
 // Client borrows HEAVILY from https://github.com/ethereum/go-ethereum/tree/master/ethclient.
 type Client struct {
-	chainID        *big.Int
-	c              JSONRPC
-	traceSemaphore *semaphore.Weighted // TODO: delete if won't use traces.
+	chainID *big.Int
+	c       JSONRPC
 }
 
 // NewClient creates a Client that from the provided url and chain ID.
 func NewClient(url string, chainID *big.Int) (*Client, error) {
 	c, err := rpc.DialHTTPWithClient(url, &http.Client{
-		Timeout: gethHTTPTimeout,
+		Timeout: rskjHTTPTimeout,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to dial node", err)
 	}
 
-	return &Client{chainID, c, semaphore.NewWeighted(maxTraceConcurrency)}, nil
+	return &Client{chainID, c}, nil
 }
 
 // Close shuts down the RPC client connection.
@@ -193,12 +194,13 @@ func (ec *Client) peers(ctx context.Context) ([]*RosettaTypes.Peer, error) {
 //
 // If the transaction was a contract creation use the TransactionReceipt method to get the
 // contract address after the transaction has been mined.
-func (ec *Client) SendTransaction(ctx context.Context, tx *types.Transaction) error {
-	data, err := rlp.EncodeToBytes(tx)
+func (ec *Client) SendTransaction(ctx context.Context, transactionHash string) (string, error) {
+	var result string
+	err := ec.c.CallContext(ctx, &result, EthSendRawTransactionMethod, transactionHash)
 	if err != nil {
-		return err
+		return "", fmt.Errorf("%w: failed to send raw transaction %s", err, transactionHash)
 	}
-	return ec.c.CallContext(ctx, nil, EthSendRawTransactionMethod, hexutil.Encode(data))
+	return result, nil
 }
 
 func toBlockNumArg(number *big.Int) string {
@@ -254,7 +256,7 @@ func (ec *Client) getParsedBlock(
 		return nil, errors.New("failed to get block, result was empty")
 	}
 
-	var rskBlock RskBlock
+	var rskBlock Block
 	if err := json.Unmarshal(raw, &rskBlock); err != nil {
 		return nil, err
 	}
@@ -262,7 +264,7 @@ func (ec *Client) getParsedBlock(
 	return ec.buildRosettaFormattedBlock(ctx, rskBlock)
 }
 
-func (ec *Client) buildRosettaFormattedBlock(ctx context.Context, rskBlock RskBlock) (*RosettaTypes.Block, error) {
+func (ec *Client) buildRosettaFormattedBlock(ctx context.Context, rskBlock Block) (*RosettaTypes.Block, error) {
 	rosettaFormattedBlockNumber, err := hexToInt(rskBlock.Number)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to parse block number", err)
@@ -295,39 +297,212 @@ func hexToInt(hex string) (int64, error) {
 	return strconv.ParseInt(hex, HexadecimalBase, HexadecimalBitSize)
 }
 
-func (ec *Client) buildRosettaTransactions(ctx context.Context, rskBlock RskBlock) ([]*RosettaTypes.Transaction, error) {
+func (ec *Client) buildRosettaTransactions(ctx context.Context, rskBlock Block) ([]*RosettaTypes.Transaction, error) {
 	rosettaTransactions := make([]*RosettaTypes.Transaction, len(rskBlock.Transactions))
+	var wg sync.WaitGroup
+	errorChannel := make(chan error, len(rskBlock.Transactions))
 	for index, rskTransaction := range rskBlock.Transactions {
-		rosettaTransactionIdentifier := &RosettaTypes.TransactionIdentifier{
-			Hash: rskTransaction.Hash,
-		}
-		transactionIndex, err := hexToInt(rskTransaction.TransactionIndex)
-		if err != nil {
-			return nil, fmt.Errorf("%w: failed to parse transaction index", err)
-		}
+		wg.Add(1)
+		go ec.addRosettaTransactionToRosettaTransactions(ctx, rskBlock, rskTransaction, rosettaTransactions, index, &wg, errorChannel)
+	}
 
-		rskTransactionType, err := ec.determineRskTransactionType(ctx, rskBlock.Number, rskTransaction)
-		if err != nil {
-			return nil, fmt.Errorf("%w: failed to determine transaction type", err)
-		}
-
-		rosettaTransactionOperation := &RosettaTypes.Operation{
-			OperationIdentifier: &RosettaTypes.OperationIdentifier{
-				Index: transactionIndex,
-			},
-			Type: rskTransactionType,
-		}
-		rosettaTransactionOperations := []*RosettaTypes.Operation{rosettaTransactionOperation}
-		rosettaTransactions[index] = &RosettaTypes.Transaction{
-			TransactionIdentifier: rosettaTransactionIdentifier,
-			Operations:            rosettaTransactionOperations,
-			Metadata:              nil,
+	wg.Wait()
+	close(errorChannel)
+	select {
+	case err, errorOccurred := <-errorChannel:
+		if errorOccurred {
+			return nil, fmt.Errorf("%w: failed to build rosetta transactions", err)
 		}
 	}
+
 	return rosettaTransactions, nil
 }
 
-func (ec *Client) buildParentBlockIdentifierFromBlockIdentifier(blockIdentifier *RosettaTypes.BlockIdentifier, rskBlock RskBlock) *RosettaTypes.BlockIdentifier {
+func (ec *Client) addRosettaTransactionToRosettaTransactions(ctx context.Context, rskBlock Block,
+	rskTransaction *Transaction, rosettaTransactions []*RosettaTypes.Transaction, index int, wg *sync.WaitGroup,
+	errorChannel chan<- error) {
+	defer wg.Done()
+	rosettaTransactionIdentifier := &RosettaTypes.TransactionIdentifier{
+		Hash: rskTransaction.Hash,
+	}
+
+	rskTransactionType, err := ec.determineRskTransactionType(ctx, rskBlock.Number, rskTransaction)
+	if err != nil {
+		errorChannel <- fmt.Errorf("%w: failed to determine transaction type", err)
+		return
+	}
+
+	transactionReceipt, err := ec.getTransactionReceipt(ctx, rskTransaction.Hash)
+	if err != nil {
+		errorChannel <- fmt.Errorf("%w: failed to get receipt for transaction %s", err, rskTransaction.Hash)
+		return
+	}
+	transactionTrace, err := ec.getTransactionTrace(ctx, rskTransaction.Hash)
+	if err != nil {
+		errorChannel <- fmt.Errorf("%w: failed to get trace for transaction %s", err, rskTransaction.Hash)
+		return
+	}
+
+	transactionGasPrice, err := hexToInt(rskTransaction.GasPrice)
+	if err != nil {
+		errorChannel <- fmt.Errorf("%w: failed to convert gas price to float", err)
+		return
+	}
+
+	transactionGasUsed, err := hexToInt(transactionReceipt.GasUsed)
+	if err != nil {
+		errorChannel <- fmt.Errorf("%w: failed to convert gas used to float", err)
+		return
+	}
+
+	var rosettaTransactionOperations []*RosettaTypes.Operation //rosettaTransactionOperation}
+
+	transactionFeeAmount := transactionGasPrice * transactionGasUsed
+	var operationIndex int64 = 0
+
+	if transactionFeeAmount != 0 {
+		rosettaTransactionOperations = ec.addTransactionFeeToRosettaOperations(&operationIndex, rskTransaction,
+			transactionFeeAmount, rosettaTransactionOperations)
+	}
+
+	if rskTransactionType == RskContractCreationTransactionType {
+		// synthetic operation is created since contract creation don't actually feature a CREATE subtrace (unless a CALL
+		// subtrace triggers a contract creation for example)
+		senderOperationIdentifier := &RosettaTypes.OperationIdentifier{
+			Index: operationIndex,
+		}
+		senderOperation := ec.buildOperation(CreateOpType, senderOperationIdentifier, 0,
+			nil, rskTransaction.From, true, operationSuccessStatus)
+
+		receiverOperationIdentifier := &RosettaTypes.OperationIdentifier{
+			Index: operationIndex + 1,
+		}
+		receiverOperation := ec.buildOperation(CreateOpType, receiverOperationIdentifier, 0,
+			[]*RosettaTypes.OperationIdentifier{senderOperationIdentifier}, transactionReceipt.ContractAddress,
+			false, operationSuccessStatus)
+
+		operationIndex += 2
+		rosettaTransactionOperations = append(rosettaTransactionOperations, senderOperation, receiverOperation)
+	} else if transactionTrace.SubTraces != nil && len(transactionTrace.SubTraces) > 0 {
+		// TODO: consider using top level information of trace + receipt to create another CALL operation (rosetta-ethereum doesn't do this, but still might be interesting)
+		gasPrice, err := hexToInt(rskTransaction.GasPrice)
+		if err != nil {
+			errorChannel <- fmt.Errorf("%w: failed to convert transaction gas price to int64", err)
+			return
+		}
+		for _, subTrace := range transactionTrace.SubTraces {
+			err = ec.addTraceOperationsToRosettaOperations(subTrace, &operationIndex, &rosettaTransactionOperations, gasPrice)
+			if err != nil {
+				errorChannel <- fmt.Errorf("%w: failed to add trace operations to rosetta operations", err)
+				return
+			}
+		}
+
+	}
+
+	rosettaMetadata := map[string]interface{}{
+		"receipt": transactionReceipt,
+		"trace":   transactionTrace,
+	}
+
+	rosettaTransactions[index] = &RosettaTypes.Transaction{
+		TransactionIdentifier: rosettaTransactionIdentifier,
+		Operations:            rosettaTransactionOperations,
+		Metadata:              rosettaMetadata,
+	}
+}
+
+func (ec *Client) addTraceOperationsToRosettaOperations(subTrace *SubTrace, operationIndex *int64,
+	rosettaTransactionOperations *[]*RosettaTypes.Operation, gasPrice int64) error {
+
+	if subTrace == nil || subTrace.InvokeData == nil {
+		return errors.New("sub trace cannot be nil and must have invoke data field")
+	}
+
+	subTraceStatus := operationSuccessStatus
+	if subTrace.ProgramResult != nil && subTrace.ProgramResult.Revert {
+		subTraceStatus = operationFailureStatus
+	}
+	senderOperationIdentifier := &RosettaTypes.OperationIdentifier{
+		Index: *operationIndex,
+	}
+	subTraceValue := subTrace.ProgramResult.GasUsed * gasPrice
+	callOp1 := ec.buildOperation(subTrace.TraceType, senderOperationIdentifier, subTraceValue,
+		nil, subTrace.InvokeData.CallerAddress, true, subTraceStatus)
+
+	receiverOperationIdentifier := &RosettaTypes.OperationIdentifier{
+		Index: *operationIndex + 1,
+	}
+	callOp2 := ec.buildOperation(subTrace.TraceType, receiverOperationIdentifier, subTraceValue,
+		[]*RosettaTypes.OperationIdentifier{senderOperationIdentifier}, subTrace.InvokeData.OwnerAddress, false,
+		subTraceStatus)
+
+	*operationIndex += 2
+	*rosettaTransactionOperations = append(*rosettaTransactionOperations, callOp1, callOp2)
+	if subTrace.SubTraces != nil && len(subTrace.SubTraces) > 0 {
+		for _, subSubTrace := range subTrace.SubTraces {
+			err := ec.addTraceOperationsToRosettaOperations(subSubTrace, operationIndex, rosettaTransactionOperations, gasPrice)
+			if err != nil {
+				return fmt.Errorf("%w: failed to add trace operations to rosetta operations", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (ec *Client) addTransactionFeeToRosettaOperations(operationIndex *int64, rskTransaction *Transaction,
+	transactionFeeAmount int64, rosettaTransactionOperations []*RosettaTypes.Operation) []*RosettaTypes.Operation {
+
+	defer func() { *operationIndex += 2 }()
+
+	senderFeeIdentifier := &RosettaTypes.OperationIdentifier{
+		Index: *operationIndex,
+	}
+
+	senderFee := ec.buildOperation(FeeOpType, senderFeeIdentifier, transactionFeeAmount, nil,
+		rskTransaction.From, true, operationSuccessStatus)
+
+	receiverFeeIdentifier := &RosettaTypes.OperationIdentifier{
+		Index: *operationIndex + 1,
+	}
+	receiverFee := ec.buildOperation(FeeOpType, receiverFeeIdentifier, transactionFeeAmount,
+		[]*RosettaTypes.OperationIdentifier{senderFeeIdentifier}, rskTransaction.To, false, operationSuccessStatus)
+
+	rosettaTransactionOperations = append(rosettaTransactionOperations, senderFee, receiverFee)
+	return rosettaTransactionOperations
+}
+
+func (ec *Client) buildOperation(operationType string, operationIdentifier *RosettaTypes.OperationIdentifier,
+	transactionGasCost int64, relatedOperations []*RosettaTypes.OperationIdentifier, accountAddress string,
+	isSender bool, operationStatus string) *RosettaTypes.Operation {
+
+	var transactionFeeModifier int64 = 1
+	if isSender {
+		transactionFeeModifier = -1
+	}
+
+	var transactionAmount *RosettaTypes.Amount
+	if transactionGasCost > 0 {
+		transactionAmount = &RosettaTypes.Amount{
+			Value:    fmt.Sprint(transactionGasCost * transactionFeeModifier),
+			Currency: DefaultCurrency,
+		}
+	}
+
+	return &RosettaTypes.Operation{
+		OperationIdentifier: operationIdentifier,
+		RelatedOperations:   relatedOperations,
+		Type:                operationType,
+		Status:              &operationStatus,
+		Account: &RosettaTypes.AccountIdentifier{
+			Address: accountAddress,
+		},
+		Amount: transactionAmount,
+	}
+}
+
+func (ec *Client) buildParentBlockIdentifierFromBlockIdentifier(blockIdentifier *RosettaTypes.BlockIdentifier, rskBlock Block) *RosettaTypes.BlockIdentifier {
 	parentBlockIdentifier := blockIdentifier
 	if blockIdentifier.Index != GenesisBlockIndex {
 		parentBlockIdentifier = &RosettaTypes.BlockIdentifier{
@@ -338,16 +513,16 @@ func (ec *Client) buildParentBlockIdentifierFromBlockIdentifier(blockIdentifier 
 	return parentBlockIdentifier
 }
 
-func (ec *Client) determineRskTransactionType(ctx context.Context, rskBlockNumber string, rskTransaction *RskTransaction) (string, error) {
-	if rskTransaction.DestinationAddress == "" {
+func (ec *Client) determineRskTransactionType(ctx context.Context, rskBlockNumber string, rskTransaction *Transaction) (string, error) {
+	if rskTransaction.To == "" {
 		return RskContractCreationTransactionType, nil
-	} else if rskTransaction.DestinationAddress == RemascTransactionDestinationAddress {
+	} else if rskTransaction.To == RemascTransactionDestinationAddress {
 		return RskRemascTransactionType, nil
-	} else if rskTransaction.DestinationAddress == BridgeTransactionDestinationAddress {
+	} else if rskTransaction.To == BridgeTransactionDestinationAddress {
 		return RskBridgeTransactionType, nil
 	} else {
 		var rawResponse json.RawMessage
-		err := ec.c.CallContext(ctx, &rawResponse, EthGetCodeMethod, rskTransaction.DestinationAddress, rskBlockNumber)
+		err := ec.c.CallContext(ctx, &rawResponse, EthGetCodeMethod, rskTransaction.To, rskBlockNumber)
 		if err != nil {
 			return "", fmt.Errorf("%w: failed to get code for block's destination address", err)
 		}
@@ -444,21 +619,33 @@ func (t *Call) UnmarshalJSON(input []byte) error {
 	return nil
 }
 
-// transactionReceipt returns the receipt of a transaction by transaction hash.
-// Note that the receipt is not available for pending transactions.
-func (ec *Client) transactionReceipt(
+// getTransactionReceipt returns the receipt of a transaction by transaction hash.
+func (ec *Client) getTransactionReceipt(
 	ctx context.Context,
-	txHash common.Hash,
-) (*types.Receipt, error) {
-	var r *types.Receipt
-	err := ec.c.CallContext(ctx, &r, EthGetTransactionReceiptMethod, txHash)
+	transactionHash string,
+) (*Receipt, error) {
+	var receipt *Receipt
+	err := ec.c.CallContext(ctx, &receipt, EthGetTransactionReceiptMethod, transactionHash)
 	if err == nil {
-		if r == nil {
+		if receipt == nil {
 			return nil, ethereum.NotFound
 		}
 	}
+	return receipt, err
+}
 
-	return r, err
+func (ec *Client) getTransactionTrace(ctx context.Context, transactionHash string) (*Trace, error) {
+	var raw json.RawMessage
+	if err := ec.c.CallContext(ctx, &raw, DebugTraceTransaction, transactionHash); err != nil {
+		return nil, fmt.Errorf("%w: failed to obtain trace for transaction %s", err, transactionHash)
+	}
+
+	var transactionTrace *Trace
+	if err := json.Unmarshal(raw, &transactionTrace); err != nil {
+		return nil, fmt.Errorf("%w: failed to parse program trace for transaction %s", err, transactionHash)
+	}
+
+	return transactionTrace, nil
 }
 
 type rpcProgress struct {
@@ -689,46 +876,4 @@ func (ec *Client) formatBigHexToDecimalString(response string) string {
 // method "eth_getTransactionReceipt".
 type GetTransactionReceiptInput struct {
 	TxHash string `json:"tx_hash"`
-}
-
-// Call handles calls to the /call endpoint.
-func (ec *Client) Call(
-	ctx context.Context,
-	request *RosettaTypes.CallRequest,
-) (*RosettaTypes.CallResponse, error) {
-	switch request.Method { // nolint:gocritic
-	case EthGetTransactionReceiptMethod:
-		var input GetTransactionReceiptInput
-		if err := RosettaTypes.UnmarshalMap(request.Parameters, &input); err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrCallParametersInvalid, err.Error())
-		}
-
-		if len(input.TxHash) == 0 {
-			return nil, fmt.Errorf("%w:tx_hash missing from params", ErrCallParametersInvalid)
-		}
-
-		receipt, err := ec.transactionReceipt(ctx, common.HexToHash(input.TxHash))
-		if err != nil {
-			return nil, err
-		}
-
-		// We cannot use RosettaTypes.MarshalMap because geth uses a custom
-		// marshaler to convert *types.Receipt to JSON.
-		jsonOutput, err := receipt.MarshalJSON()
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrCallOutputMarshal, err.Error())
-		}
-
-		var receiptMap map[string]interface{}
-		if err := json.Unmarshal(jsonOutput, &receiptMap); err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrCallOutputMarshal, err.Error())
-		}
-
-		// We must encode data over the wire so we can unmarshal correctly
-		return &RosettaTypes.CallResponse{
-			Result: receiptMap,
-		}, nil
-	}
-
-	return nil, fmt.Errorf("%w: %s", ErrCallMethodInvalid, request.Method)
 }

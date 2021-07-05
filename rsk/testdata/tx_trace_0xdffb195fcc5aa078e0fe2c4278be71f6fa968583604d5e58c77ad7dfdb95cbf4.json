@@ -1,0 +1,508 @@
+{
+  "programInvoke": null,
+  "transferInvoke": {
+    "ownerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+    "callerAddress": "0000000000000000000000000000000000000000000000000000000000000000",
+    "gas": 0,
+    "callValue": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "subtraces": [
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "00000000000000000000000014d3065c8eb89895f4df12450ec6b130049f8034",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "0000000000000000000000000000000000000000000000000000003cf58afb09"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "0000000000000000000000001888fa870b97a4845a6a1f7eee4ebb507dbe0967",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "000000000000000000000000530aad5be57e9be2084881b1d84f2a30e896ae36",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "0000000000000000000000000474f314fef5373fd2afaafdcd7a8bdec1ab4309",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "0000000000000000000000002c40fc683ee04c1b918635005ae7c89e1eb7b1f1",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "0000000000000000000000001e01385c6d522583575f60fee384f30405ffae01",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "000000000000000000000000304660d1beeb0918b7b3f7657d8418686cb578b1",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "000000000000000000000000e4945372d758650275e23fa90f754d0f67fa66e2",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "000000000000000000000000abb1d944a0dc0ead5a36b31087bd1fc31726e674",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "00000000000000000000000032c865f2dbf36ce6f4cfcb624b559ef98b33a2d1",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "000000000000000000000000f006f6202e0c29ef2e3b1532d2307427864ed77a",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "000000000000000000000000ee877101e4e5758930222e6605cbd0a19e8ad981",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "00000000000000000000000067af698c927ae574fb43d45a50522c207f81100f",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "0000000000000000000000000a1d7f3c50dae072b019eff0f306ae1613b56b3c",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "000000000000000000000000571dde4b32017efaad8dc0c9fa9b748096c036a2",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d624a"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "000000000000000000000000f74b7e0d5bdd14eaedf725bb1549ce14abeb71dd",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000000299d6250"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "00000000000000000000000012d3178a62ef1f520944534ed04504609f7307a1",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "0000000000000000000000000000000000000000000000000000001823cb842d"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "00000000000000000000000012d3178a62ef1f520944534ed04504609f7307a1",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "00000000000000000000000000000000000000000000000000000067329fa1de"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    },
+    {
+      "traceType": "CALL",
+      "callType": "CALL",
+      "creationData": null,
+      "creationMethod": null,
+      "invokeData": {
+        "ownerAddress": "00000000000000000000000012d3178a62ef1f520944534ed04504609f7307a1",
+        "callerAddress": "0000000000000000000000000000000000000000000000000000000001000008",
+        "gas": 0,
+        "callValue": "0000000000000000000000000000000000000000000000000000006ca113d2ce"
+      },
+      "programResult": {
+        "gasUsed": 0,
+        "hReturn": "",
+        "exception": null,
+        "revert": false,
+        "codeChanges": null,
+        "deleteAccounts": null,
+        "internalTransactions": null,
+        "logInfoList": null,
+        "futureRefund": 0,
+        "callCreateList": null
+      },
+      "codeAddress": null,
+      "subtraces": []
+    }
+  ],
+  "result": null,
+  "error": null,
+  "reverted": false
+}

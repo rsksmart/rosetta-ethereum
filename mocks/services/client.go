@@ -8,8 +8,6 @@ import (
 
 	common "github.com/ethereum/go-ethereum/common"
 
-	coretypes "github.com/ethereum/go-ethereum/core/types"
-
 	mock "github.com/stretchr/testify/mock"
 
 	types "github.com/coinbase/rosetta-sdk-go/types"
@@ -110,18 +108,25 @@ func (_m *Client) PendingNonceAt(_a0 context.Context, _a1 common.Address) (uint6
 	return r0, r1
 }
 
-// SendTransaction provides a mock function with given fields: ctx, tx
-func (_m *Client) SendTransaction(ctx context.Context, tx *coretypes.Transaction) error {
-	ret := _m.Called(ctx, tx)
+// SendTransaction provides a mock function with given fields: ctx, transactionHash
+func (_m *Client) SendTransaction(ctx context.Context, transactionHash string) (string, error) {
+	ret := _m.Called(ctx, transactionHash)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction) error); ok {
-		r0 = rf(ctx, tx)
+	var r0 string
+	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = rf(ctx, transactionHash)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(string)
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, transactionHash)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // Status provides a mock function with given fields: _a0

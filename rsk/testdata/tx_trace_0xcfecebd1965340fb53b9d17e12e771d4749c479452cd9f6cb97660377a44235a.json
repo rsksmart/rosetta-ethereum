@@ -1,0 +1,13 @@
+{
+  "programInvoke": null,
+  "transferInvoke": {
+    "ownerAddress": "00000000000000000000000073ded52bf85f28a323e6b96d3a7341f3c65d2dbd",
+    "callerAddress": "000000000000000000000000623e08eed670e4a07f951378b0e8eed2f74fee7b",
+    "gas": 0,
+    "callValue": "0000000000000000000000000000000000000000000000000000063552409ec0"
+  },
+  "subtraces": [],
+  "result": null,
+  "error": null,
+  "reverted": false
+}
