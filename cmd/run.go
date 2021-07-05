@@ -83,6 +83,7 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	var client *rsk.Client
+	// TODO: remove geth startup
 	if cfg.Mode == configuration.Online {
 		if !cfg.RemoteGeth {
 			g.Go(func() error {
@@ -98,7 +99,9 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 		defer client.Close()
 	}
 
-	router := services.NewBlockchainRouter(cfg, client, asserter)
+	transactionEncoder := rsk.NewRlpTransactionEncoder()
+
+	router := services.NewBlockchainRouter(cfg, client, asserter, transactionEncoder)
 
 	loggedRouter := server.LoggerMiddleware(router)
 	corsRouter := server.CorsMiddleware(loggedRouter)
