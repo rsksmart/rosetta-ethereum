@@ -3,8 +3,7 @@
 package rsk
 
 import (
-	big "math/big"
-
+	rsk "github.com/rsksmart/rosetta-rsk/rsk"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -13,13 +12,36 @@ type TransactionEncoder struct {
 	mock.Mock
 }
 
-// EncodeTransaction provides a mock function with given fields: nonce, gas, receiverAddress, gasPrice, value, data, ecdsaSignatureV, ecdsaSignatureR, ecdsaSignatureS
-func (_m *TransactionEncoder) EncodeTransaction(nonce uint64, gas uint64, receiverAddress string, gasPrice *big.Int, value *big.Int, data []byte, ecdsaSignatureV *big.Int, ecdsaSignatureR *big.Int, ecdsaSignatureS *big.Int, chainID *big.Int) ([]byte, error) {
-	ret := _m.Called(nonce, gas, receiverAddress, gasPrice, value, data, ecdsaSignatureV, ecdsaSignatureR, ecdsaSignatureS)
+// DecodeTransaction provides a mock function with given fields: _a0
+func (_m *TransactionEncoder) DecodeTransaction(_a0 []byte) (*rsk.RlpTransactionParameters, error) {
+	ret := _m.Called(_a0)
+
+	var r0 *rsk.RlpTransactionParameters
+	if rf, ok := ret.Get(0).(func([]byte) *rsk.RlpTransactionParameters); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*rsk.RlpTransactionParameters)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]byte) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// EncodeRawTransaction provides a mock function with given fields: rlpTransactionParameters
+func (_m *TransactionEncoder) EncodeRawTransaction(rlpTransactionParameters *rsk.RlpTransactionParameters) ([]byte, error) {
+	ret := _m.Called(rlpTransactionParameters)
 
 	var r0 []byte
-	if rf, ok := ret.Get(0).(func(uint64, uint64, string, *big.Int, *big.Int, []byte, *big.Int, *big.Int, *big.Int) []byte); ok {
-		r0 = rf(nonce, gas, receiverAddress, gasPrice, value, data, ecdsaSignatureV, ecdsaSignatureR, ecdsaSignatureS)
+	if rf, ok := ret.Get(0).(func(*rsk.RlpTransactionParameters) []byte); ok {
+		r0 = rf(rlpTransactionParameters)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]byte)
@@ -27,8 +49,31 @@ func (_m *TransactionEncoder) EncodeTransaction(nonce uint64, gas uint64, receiv
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(uint64, uint64, string, *big.Int, *big.Int, []byte, *big.Int, *big.Int, *big.Int) error); ok {
-		r1 = rf(nonce, gas, receiverAddress, gasPrice, value, data, ecdsaSignatureV, ecdsaSignatureR, ecdsaSignatureS)
+	if rf, ok := ret.Get(1).(func(*rsk.RlpTransactionParameters) error); ok {
+		r1 = rf(rlpTransactionParameters)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// EncodeTransaction provides a mock function with given fields: rlpTransactionParameters
+func (_m *TransactionEncoder) EncodeTransaction(rlpTransactionParameters *rsk.RlpTransactionParameters) ([]byte, error) {
+	ret := _m.Called(rlpTransactionParameters)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(*rsk.RlpTransactionParameters) []byte); ok {
+		r0 = rf(rlpTransactionParameters)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(*rsk.RlpTransactionParameters) error); ok {
+		r1 = rf(rlpTransactionParameters)
 	} else {
 		r1 = ret.Error(1)
 	}

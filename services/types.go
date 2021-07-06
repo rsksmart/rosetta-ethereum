@@ -82,22 +82,17 @@ func (m *metadata) MarshalJSON() ([]byte, error) {
 func (m *metadata) UnmarshalJSON(data []byte) error {
 	var mw metadataWire
 	if err := json.Unmarshal(data, &mw); err != nil {
-		fmt.Println("Error decoding metadataWire")
-		return err
+		return fmt.Errorf("%w: failed to unmarshal metadata wire", err)
 	}
 
 	nonce, err := hexutil.DecodeUint64(mw.Nonce)
 	if err != nil {
-		fmt.Println("Error decoding Nonce")
-		return err
+		return fmt.Errorf("%w: failed to decode nonce", err)
 	}
 
-	fmt.Println("GasPrice")
-	fmt.Println(mw.GasPrice)
 	gasPrice, err := hexutil.DecodeBig(mw.GasPrice)
 	if err != nil {
-		fmt.Println("Error decoding GasPrice")
-		return err
+		return fmt.Errorf("%w: failed to decode gas price", err)
 	}
 
 	m.GasPrice = gasPrice

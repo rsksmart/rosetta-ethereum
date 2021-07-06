@@ -13,6 +13,54 @@ var (
 	testEcdsaSignatureS, _ = new(big.Int).SetString("0x3fe112900a4dcebbeda46537c301f39ce7e02e0d7a063ce0bd878dbb21c7f50d", HexadecimalBase)
 )
 
+func TestRlpTransactionEncoder_EncodeRawTransaction(t *testing.T) {
+	type args struct {
+		rlpTransactionParameters *RlpTransactionParameters
+	}
+	tests := []struct {
+		name             string
+		args             args
+		isResultExpected func([]byte) bool
+		wantErr          bool
+	}{
+		{
+			name: "Raw transaction is encoded as expected",
+			args: args{
+				rlpTransactionParameters: &RlpTransactionParameters{
+					Nonce:           1,
+					Gas:             big.NewInt(21000),
+					ReceiverAddress: "0x6e88dd4c85edde75ae906f6165cec292794fc8d9",
+					GasPrice:        big.NewInt(20000000000),
+					Value:           big.NewInt(10000000000000000),
+					Data:            []byte{},
+					EcdsaSignatureV: big.NewInt(27),
+					EcdsaSignatureR: testEcdsaSignatureR,
+					EcdsaSignatureS: testEcdsaSignatureS,
+					ChainID:         TestnetChainID,
+				},
+			},
+			isResultExpected: func(result []byte) bool {
+				return hex.EncodeToString(result) == "eb018504a817c800825208946e88dd4c85edde75ae906f6165cec292794fc8d9872386f26fc10000801f8080"
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &RlpTransactionEncoder{}
+			got, err := e.EncodeRawTransaction(tt.args.rlpTransactionParameters)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("EncodeRawTransaction() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.isResultExpected(got) {
+				t.Errorf("EncodeRawTransaction() unexpected result")
+				return
+			}
+
+		})
+	}
+}
+
 func TestRlpTransactionEncoder_EncodeTransaction(t *testing.T) {
 	type args struct {
 		rlpTransactionParameters *RlpTransactionParameters
