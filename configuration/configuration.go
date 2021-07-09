@@ -62,7 +62,7 @@ const (
 
 	// RskjEnv is an optional environment variable
 	// used to connect rosetta-rsk to an already
-	// running geth node.
+	// running rskj node.
 	RskjEnv = "RSKJ"
 
 	// DefaultRskjURL is the default URL for
@@ -79,10 +79,10 @@ type Configuration struct {
 	Mode                   Mode
 	Network                *types.NetworkIdentifier
 	GenesisBlockIdentifier *types.BlockIdentifier
-	GethURL                string
-	RemoteGeth             bool
+	RskjURL                string
+	RemoteRskj             bool
 	Port                   int
-	GethArguments          string
+	RskjArguments          string
 	ChainID                *big.Int
 }
 
@@ -112,7 +112,7 @@ func LoadConfiguration() (*Configuration, error) {
 		}
 		config.GenesisBlockIdentifier = rsk.MainnetGenesisBlockIdentifier
 		config.ChainID = rsk.MainnetChainID
-		config.GethArguments = rsk.MainnetGethArguments
+		config.RskjArguments = rsk.MainnetArguments
 	case Testnet:
 		config.Network = &types.NetworkIdentifier{
 			Blockchain: rsk.Blockchain,
@@ -120,18 +120,18 @@ func LoadConfiguration() (*Configuration, error) {
 		}
 		config.GenesisBlockIdentifier = rsk.TestnetGenesisBlockIdentifier
 		config.ChainID = rsk.TestnetChainID
-		config.GethArguments = rsk.TestnetGethArguments
+		config.RskjArguments = rsk.TestnetRskjArguments
 	case "":
 		return nil, errors.New("NETWORK must be populated")
 	default:
 		return nil, fmt.Errorf("%s is not a valid network", networkValue)
 	}
 
-	config.GethURL = DefaultRskjURL
-	envGethURL := os.Getenv(RskjEnv)
-	if len(envGethURL) > 0 {
-		config.RemoteGeth = true
-		config.GethURL = envGethURL
+	config.RskjURL = DefaultRskjURL
+	envRskjURL := os.Getenv(RskjEnv)
+	if len(envRskjURL) > 0 {
+		config.RemoteRskj = true
+		config.RskjURL = envRskjURL
 	}
 
 	portValue := os.Getenv(PortEnv)

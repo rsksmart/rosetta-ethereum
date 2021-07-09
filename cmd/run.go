@@ -83,16 +83,15 @@ func runRunCmd(cmd *cobra.Command, args []string) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	var client *rsk.Client
-	// TODO: remove geth startup
 	if cfg.Mode == configuration.Online {
-		if !cfg.RemoteGeth {
+		if !cfg.RemoteRskj {
 			g.Go(func() error {
-				return rsk.StartGeth(ctx, cfg.GethArguments, g)
+				return rsk.StartRskj(ctx, cfg.RskjArguments, g)
 			})
 		}
 
 		var err error
-		client, err = rsk.NewClient(cfg.GethURL, cfg.ChainID)
+		client, err = rsk.NewClient(cfg.RskjURL, cfg.ChainID)
 		if err != nil {
 			return fmt.Errorf("%w: cannot initialize ethereum client", err)
 		}

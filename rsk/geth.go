@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	gethLogger       = "geth"
-	gethStdErrLogger = "geth err"
+	rskjLogger       = "rskj"
+	rskjStdErrLogger = "rskj err"
 )
 
-// logPipe prints out logs from geth. We don't end when context
+// logPipe prints out logs from rskj. We don't end when context
 // is canceled beacause there are often logs printed after this.
 func logPipe(pipe io.ReadCloser, identifier string) error {
 	reader := bufio.NewReader(pipe)
@@ -48,12 +48,12 @@ func logPipe(pipe io.ReadCloser, identifier string) error {
 	}
 }
 
-// StartGeth starts a geth daemon in another goroutine
+// StartRskj starts a rskj daemon in another goroutine
 // and logs the results to the console.
-func StartGeth(ctx context.Context, arguments string, g *errgroup.Group) error {
+func StartRskj(ctx context.Context, arguments string, g *errgroup.Group) error {
 	parsedArgs := strings.Split(arguments, " ")
 	cmd := exec.Command(
-		"/app/geth",
+		"java",
 		parsedArgs...,
 	) // #nosec G204
 
@@ -68,21 +68,21 @@ func StartGeth(ctx context.Context, arguments string, g *errgroup.Group) error {
 	}
 
 	g.Go(func() error {
-		return logPipe(stdout, gethLogger)
+		return logPipe(stdout, rskjLogger)
 	})
 
 	g.Go(func() error {
-		return logPipe(stderr, gethStdErrLogger)
+		return logPipe(stderr, rskjStdErrLogger)
 	})
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("%w: unable to start geth", err)
+		return fmt.Errorf("%w: unable to start rskj", err)
 	}
 
 	g.Go(func() error {
 		<-ctx.Done()
 
-		log.Println("sending interrupt to geth")
+		log.Println("sending interrupt to rskj")
 		return cmd.Process.Signal(os.Interrupt)
 	})
 

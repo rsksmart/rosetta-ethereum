@@ -1,6 +1,6 @@
 .PHONY: deps build run lint run-mainnet-online run-mainnet-offline run-testnet-online \
 	run-testnet-offline check-comments add-license check-license shorten-lines \
-	spellcheck salus build-local format check-format update-tracer test coverage coverage-local \
+	spellcheck salus build-local format check-format test coverage coverage-local \
 	update-bootstrap-balances mocks
 
 ADDLICENSE_CMD=go run github.com/google/addlicense
@@ -34,13 +34,6 @@ build-release:
 	docker build -t rosetta-rsk:$(version) .;
 	docker save rosetta-rsk:$(version) | gzip > rosetta-rsk-$(version).tar.gz;
 
-update-tracer:
-	curl https://raw.githubusercontent.com/ethereum/go-ethereum/master/eth/tracers/internal/tracers/call_tracer.js -o ethereum/client/call_tracer.js
-
-update-bootstrap-balances:
-	go run main.go utils:generate-bootstrap ethereum/genesis_files/mainnet.json rosetta-cli-conf/mainnet/bootstrap_balances.json;
-	go run main.go utils:generate-bootstrap ethereum/genesis_files/testnet.json rosetta-cli-conf/testnet/bootstrap_balances.json;
-
 run-mainnet-online:
 	docker run -d --rm --ulimit "nofile=${NOFILE}:${NOFILE}" -v "${PWD}/rsk-data:/data" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
 
@@ -54,10 +47,10 @@ run-testnet-offline:
 	docker run -d --rm -e "MODE=OFFLINE" -e "NETWORK=TESTNET" -e "PORT=8081" -p 8081:8081 rosetta-rsk:latest
 
 run-mainnet-remote:
-	docker run -d --rm --ulimit "nofile=${NOFILE}:${NOFILE}" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -e "RSKJ=$(geth)" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
+	docker run -d --rm --ulimit "nofile=${NOFILE}:${NOFILE}" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -e "RSKJ=$(rskj)" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
 
 run-testnet-remote:
-	docker run -d --rm --ulimit "nofile=${NOFILE}:${NOFILE}" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "RSKJ=$(geth)" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
+	docker run -d --rm --ulimit "nofile=${NOFILE}:${NOFILE}" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "RSKJ=$(rskj)" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
 
 check-comments:
 	${GOLINT_CMD} -set_exit_status ${GO_FOLDERS} .

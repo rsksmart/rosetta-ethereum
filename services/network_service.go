@@ -86,7 +86,7 @@ func (s *NetworkAPIService) NetworkStatus(
 	}
 
 	if currentTime < asserter.MinUnixEpoch {
-		return nil, ErrGethNotReady
+		return nil, ErrRskjNotReady
 	}
 
 	return &types.NetworkStatusResponse{

@@ -15,7 +15,7 @@
 </p>
 
 ## Overview
-`rosetta-rsk` provides a WIP reference implementation of the Rosetta API for
+`rosetta-rsk` provides a WIP implementation of the Rosetta API for
 RSK in Golang. If you haven't heard of the Rosetta API, you can find more
 information [here](https://rosetta-api.org).
 
@@ -58,15 +58,15 @@ _It is possible to run `rosetta-rsk` using a remote node by adding
 
 #### Mainnet:Online
 ```text
-docker run -d --rm --ulimit "nofile=100000:100000" -v "$(pwd)/rsk-data:/data" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
+docker run -d --rm --ulimit "nofile=100000:100000" -v "$(pwd)/rsk-data:/data" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -p 8080:8080 -p 4444:4444 rosetta-rsk:latest
 ```
 _If you cloned the repository, you can run `make run-mainnet-online`._
 
 #### Mainnet:Online (Remote)
 ```text
-docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -e "RSKJ=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
+docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=MAINNET" -e "PORT=8080" -e "RSKJ=<NODE URL>" -p 8080:8080 -p 4444:4444 rosetta-rsk:latest
 ```
-_If you cloned the repository, you can run `make run-mainnet-remote geth=<NODE URL>`._
+_If you cloned the repository, you can run `make run-mainnet-remote rskj=<NODE URL>`._
 
 #### Mainnet:Offline
 ```text
@@ -76,13 +76,13 @@ _If you cloned the repository, you can run `make run-mainnet-offline`._
 
 #### Testnet:Online
 ```text
-docker run -d --rm --ulimit "nofile=100000:100000" -v "$(pwd)/rsk-data:/data" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
+docker run -d --rm --ulimit "nofile=100000:100000" -v "$(pwd)/rsk-data:/data" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -p 8080:8080 -p 4444:4444 rosetta-rsk:latest
 ```
 _If you cloned the repository, you can run `make run-testnet-online`._
 
 #### Testnet:Online (Remote)
 ```text
-docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "RSKJ=<NODE URL>" -p 8080:8080 -p 30303:30303 rosetta-rsk:latest
+docker run -d --rm --ulimit "nofile=100000:100000" -e "MODE=ONLINE" -e "NETWORK=TESTNET" -e "PORT=8080" -e "RSKJ=<NODE URL>" -p 8080:8080 -p 4444:4444 rosetta-rsk:latest
 ```
 _If you cloned the repository, you can run `make run-testnet-remote rskj=<NODE URL>`._
 
@@ -106,7 +106,7 @@ Assuming you have a RSK node running in your own machine at port 4444, you could
       <env name="MODE" value="ONLINE" />
       <env name="NETWORK" value="MAINNET" />
       <env name="PORT" value="8080" />
-      <env name="GETH" value="http://localhost:4444" />
+      <env name="RSKJ" value="http://localhost:4444" />
     </envs>
     <kind value="PACKAGE" />
     <package value="github.com/rsksmart/rosetta-rsk" />

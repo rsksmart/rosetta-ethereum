@@ -30,7 +30,7 @@ func TestLoadConfiguration(t *testing.T) {
 		Mode    string
 		Network string
 		Port    string
-		Geth    string
+		Rskj    string
 
 		cfg *Configuration
 		err error
@@ -60,15 +60,15 @@ func TestLoadConfiguration(t *testing.T) {
 				ChainID:                rsk.MainnetChainID,
 				GenesisBlockIdentifier: rsk.MainnetGenesisBlockIdentifier,
 				Port:                   1000,
-				GethURL:                DefaultRskjURL,
-				GethArguments:          rsk.MainnetGethArguments,
+				RskjURL:                DefaultRskjURL,
+				RskjArguments:          rsk.MainnetArguments,
 			},
 		},
 		"all set (mainnet) + geth": {
 			Mode:    string(Online),
 			Network: Mainnet,
 			Port:    "1000",
-			Geth:    "http://blah",
+			Rskj:    "http://blah",
 			cfg: &Configuration{
 				Mode: Online,
 				Network: &types.NetworkIdentifier{
@@ -78,9 +78,9 @@ func TestLoadConfiguration(t *testing.T) {
 				ChainID:                rsk.MainnetChainID,
 				GenesisBlockIdentifier: rsk.MainnetGenesisBlockIdentifier,
 				Port:                   1000,
-				GethURL:                "http://blah",
-				RemoteGeth:             true,
-				GethArguments:          rsk.MainnetGethArguments,
+				RskjURL:                "http://blah",
+				RemoteRskj:             true,
+				RskjArguments:          rsk.MainnetArguments,
 			},
 		},
 		"all set (testnet)": {
@@ -96,8 +96,8 @@ func TestLoadConfiguration(t *testing.T) {
 				ChainID:                rsk.TestnetChainID,
 				GenesisBlockIdentifier: rsk.TestnetGenesisBlockIdentifier,
 				Port:                   1000,
-				GethURL:                DefaultRskjURL,
-				GethArguments:          rsk.TestnetGethArguments,
+				RskjURL:                DefaultRskjURL,
+				RskjArguments:          rsk.TestnetRskjArguments,
 			},
 		},
 		"invalid mode": {
@@ -125,7 +125,7 @@ func TestLoadConfiguration(t *testing.T) {
 			os.Setenv(ModeEnv, test.Mode)
 			os.Setenv(NetworkEnv, test.Network)
 			os.Setenv(PortEnv, test.Port)
-			os.Setenv(RskjEnv, test.Geth)
+			os.Setenv(RskjEnv, test.Rskj)
 
 			cfg, err := LoadConfiguration()
 			if test.err != nil {

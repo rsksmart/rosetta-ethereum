@@ -87,7 +87,7 @@ func (ec *Client) Close() {
 	ec.c.Close()
 }
 
-// Status returns geth status information
+// Status returns rskj status information
 // for determining node healthiness.
 func (ec *Client) Status(ctx context.Context) (
 	*RosettaTypes.BlockIdentifier,
