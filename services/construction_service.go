@@ -283,13 +283,22 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 	}
 
 	// Construct SigningPayload
-	signer := ethTypes.NewEIP155Signer(chainID) // TODO: check if signer is correct for RSK
-	hash := signer.Hash(tx)                     // TODO: remove variable
-	hashHex := hash.Hex()
-	fmt.Println(hashHex)
+	encodedTransaction, err := s.transactionEncoder.EncodeTransaction(&rsk.RlpTransactionParameters{
+		Nonce:           unsignedTx.Nonce,
+		Gas:             new(big.Int).SetUint64(unsignedTx.GasLimit),
+		ReceiverAddress: unsignedTx.To,
+		GasPrice:        unsignedTx.GasPrice,
+		Value:           unsignedTx.Value,
+		Data:            unsignedTx.Input,
+		ChainID:         unsignedTx.ChainID,
+	})
+	if err != nil {
+		return nil, wrapErr(ErrUnableToParseIntermediateResult, fmt.Errorf("%w: failed to encode transaction", err))
+	}
+
 	payload := &types.SigningPayload{
 		AccountIdentifier: &types.AccountIdentifier{Address: checkFrom},
-		Bytes:             hash.Bytes(),
+		Bytes:             encodedTransaction,
 		SignatureType:     types.EcdsaRecovery,
 	}
 
@@ -302,8 +311,6 @@ func (s *ConstructionAPIService) ConstructionPayloads(
 		UnsignedTransaction: string(unsignedTxJSON),
 		Payloads:            []*types.SigningPayload{payload},
 	}
-	bla, _ := json.Marshal(c)
-	fmt.Println(string(bla))
 	return c, nil
 }
 

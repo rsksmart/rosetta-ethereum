@@ -64,7 +64,6 @@ func (e *RlpTransactionEncoder) EncodeRawTransaction(rlpTransactionParameters *R
 		}
 		rBytes, err = rlp.EncodeToBytes([]byte{})
 		sBytes, err = rlp.EncodeToBytes([]byte{})
-		fmt.Println(fmt.Sprintf("r: %x, s: %x", rBytes, sBytes))
 	}
 	return e.encodeTransactionWithPreEncodedEcdsaValues(rlpTransactionParameters, vBytes, rBytes, sBytes)
 }
@@ -72,19 +71,39 @@ func (e *RlpTransactionEncoder) EncodeRawTransaction(rlpTransactionParameters *R
 // EncodeTransaction RLP encodes a transaction. It uses RSK custom logic for prefix bytes, and geth logic for
 // leaf item encoding. Due to the custom prefix bytes, decoding cannot use any geth logic.
 func (e *RlpTransactionEncoder) EncodeTransaction(rlpTransactionParameters *RlpTransactionParameters) ([]byte, error) {
-	vBytes, err := e.encodeEcdsaSignatureV(rlpTransactionParameters.ChainID, rlpTransactionParameters.EcdsaSignatureV)
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to RLP encode component V of ECDSA signature", err)
-	}
-	rBytes, err := e.encodeBigIntAsUnsigned(rlpTransactionParameters.EcdsaSignatureR)
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to RLP encode component R of ECDSA signature", err)
-	}
-	sBytes, err := e.encodeBigIntAsUnsigned(rlpTransactionParameters.EcdsaSignatureS)
-	if err != nil {
-		return nil, fmt.Errorf("%w: failed to RLP encode component S of ECDSA signature", err)
-	}
 
+	var rBytes, sBytes, vBytes []byte
+
+	isUnsignedTransaction := rlpTransactionParameters.EcdsaSignatureR == nil || rlpTransactionParameters.EcdsaSignatureS == nil ||
+		rlpTransactionParameters.EcdsaSignatureV == nil
+
+	if isUnsignedTransaction {
+		var err error
+		if rlpTransactionParameters.ChainID.Cmp(big.NewInt(0)) == 0 {
+			vBytes, err = rlp.EncodeToBytes([]byte{})
+		} else {
+			vBytes, err = e.encodeBigInt(rlpTransactionParameters.ChainID)
+			if err != nil {
+				return nil, fmt.Errorf("%w: failed to encode chain ID", err)
+			}
+		}
+		rBytes, err = rlp.EncodeToBytes([]byte{})
+		sBytes, err = rlp.EncodeToBytes([]byte{})
+	} else {
+		var err error
+		vBytes, err = e.encodeEcdsaSignatureV(rlpTransactionParameters.ChainID, rlpTransactionParameters.EcdsaSignatureV)
+		if err != nil {
+			return nil, fmt.Errorf("%w: failed to RLP encode component V of ECDSA signature", err)
+		}
+		rBytes, err = e.encodeBigIntAsUnsigned(rlpTransactionParameters.EcdsaSignatureR)
+		if err != nil {
+			return nil, fmt.Errorf("%w: failed to RLP encode component R of ECDSA signature", err)
+		}
+		sBytes, err = e.encodeBigIntAsUnsigned(rlpTransactionParameters.EcdsaSignatureS)
+		if err != nil {
+			return nil, fmt.Errorf("%w: failed to RLP encode component S of ECDSA signature", err)
+		}
+	}
 	encodedTxFieldsBytes, err := e.encodeTransactionWithPreEncodedEcdsaValues(rlpTransactionParameters, vBytes, rBytes, sBytes)
 	if err != nil {
 		return nil, fmt.Errorf("%w: failed to encode transaction with pre encoded ECDSA values", err)
@@ -200,21 +219,14 @@ func (e *RlpTransactionEncoder) flattenByteSlices(byteSlices [][]byte) []byte {
 
 // prefixEncodedTxWithRlpMetadata adds encoding prefix to RLP encoded transaction fields.
 func (e *RlpTransactionEncoder) prefixEncodedTxWithRlpMetadata(joinedEncodedTxFieldsBytes []byte) []byte {
-	toString := hex.EncodeToString(joinedEncodedTxFieldsBytes)
-	fmt.Println(toString)
 	encodedByteAmount := len(joinedEncodedTxFieldsBytes)
 	encodedListPrefix := e.getListEncodingPrefix(uint64(encodedByteAmount))
-	encodeToString := hex.EncodeToString(encodedListPrefix)
-	fmt.Println(encodeToString)
-	// TODO: make test for raw encoding, so that we get eb018504a817c800825208946e88dd4c85edde75ae906f6165cec292794fc8d9872386f26fc10000801f8080
 	joinedEncodedTxFieldsBytes = append(encodedListPrefix, joinedEncodedTxFieldsBytes...)
 	return joinedEncodedTxFieldsBytes
 }
 
 // getListEncodingPrefix returns a prefix indicating that an encoded list is what follows.
 func (e *RlpTransactionEncoder) getListEncodingPrefix(encodedByteAmount uint64) []byte {
-	// TODO: handle case were elements are null?
-	// TODO: contemplate non-list items if deciding to not use geth at all.
 	var prefixBytes []byte
 	if encodedByteAmount < shortListMaxSize {
 		prefixBytes = []byte{byte(shortListPrefixByteOffset + encodedByteAmount)} // we use only one byte for list prefix if the list is short
@@ -364,7 +376,7 @@ func (e *RlpTransactionEncoder) decodeList(data []byte) (*RlpList, error) {
 func (e *RlpTransactionEncoder) decodeSiblingRlpEntities(data []byte) ([]RlpEntity, error) {
 	result := make([]RlpEntity, 0)
 	if data == nil {
-		return result, nil // TODO: test that this happens upon nil byte slice
+		return result, nil
 	}
 	dataByteAmount := len(data)
 	dataPosition := 0
