@@ -35,7 +35,7 @@ var (
 		ErrCallMethodInvalid,
 		ErrBlockOrphaned,
 		ErrInvalidAddress,
-		ErrGethNotReady,
+		ErrRskjNotReady,
 	}
 
 	// ErrUnimplemented is returned when an endpoint
@@ -137,9 +137,9 @@ var (
 		Message: "Invalid address",
 	}
 
-	// ErrGethNotReady is returned when geth
+	// ErrRskjNotReady is returned when rskj
 	// cannot yet serve any queries.
-	ErrGethNotReady = &types.Error{
+	ErrRskjNotReady = &types.Error{
 		Code:      13, //nolint
 		Message:   "rskj not ready",
 		Retriable: true,

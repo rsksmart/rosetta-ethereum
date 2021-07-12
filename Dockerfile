@@ -13,44 +13,42 @@
 # limitations under the License.
 
 # Support golang and necessary base dependencies
-FROM golang:1.15.5-alpine3.12 as golang-builder
+FROM golang:1.16 as golang-builder
 
 RUN mkdir -p /app \
   && chown -R nobody:nogroup /app
 WORKDIR /app
 
-RUN apk --no-cache add curl make gcc g++ git linux-headers
+RUN apt-get update && \
+    apt-get install -y make gcc g++ curl build-essential jq findutils && \
+    rm -rf /var/lib/apt/lists/*
 
-# Compile geth
-FROM golang-builder as geth-builder
+# Download latest rskj release
+FROM golang-builder as rskj-downloader
 
-# VERSION: go-ethereum v.1.9.24
-RUN git clone https://github.com/ethereum/go-ethereum \
-  && cd go-ethereum \
-  && git checkout cc05b050df5f88e80bb26aaf6d2f339c49c2d702
+WORKDIR /app
 
-RUN cd go-ethereum \
-  && make geth
-
-RUN mv go-ethereum/build/bin/geth /app/geth \
-  && rm -rf go-ethereum
+RUN curl --silent "https://api.github.com/repos/rsksmart/rskj/releases/latest" | \
+    jq -r '.assets[] | select(.name | test("^rskj-core.*\\.jar$")).browser_download_url' | \
+    xargs curl -L -o rskj-core-latest.jar && \
+    mkdir rsk && \
+    mv rskj-core-latest.jar /app/rsk
 
 # Compile rosetta-rsk
 FROM golang-builder as rosetta-builder
 
 # Use native remote build context to build in any directory
-COPY . src 
+COPY . src
 RUN cd src \
   && go build
 
 RUN mv src/rosetta-rsk /app/rosetta-rsk \
-  && mkdir /app/ethereum \
-  && mv src/ethereum/call_tracer.js /app/ethereum/call_tracer.js \
-  && mv src/ethereum/geth.toml /app/ethereum/geth.toml \
-  && rm -rf src 
+  && mkdir /app/rsk \
+  && mv src/rsk/rsk.conf /app/rsk/rsk.conf \
+  && rm -rf src
 
 ## Build Final Image
-FROM alpine:3.12
+FROM openjdk:8
 
 RUN mkdir -p /app \
   && chown -R nobody:nogroup /app \
@@ -59,14 +57,13 @@ RUN mkdir -p /app \
 
 WORKDIR /app
 
-# Copy binary from geth-builder
-COPY --from=geth-builder /app/geth /app/geth
-
+# Copy jar from rsk-builder
+COPY --from=rskj-downloader /app/rsk/rskj-core-latest.jar .
 # Copy binary from rosetta-builder
-COPY --from=rosetta-builder /app/ethereum /app/ethereum
+COPY --from=rosetta-builder /app/rsk /app/rsk
 COPY --from=rosetta-builder /app/rosetta-rsk /app/rosetta-rsk
 
 # Set permissions for everything added to /app
 RUN chmod -R 755 /app/*
 
-CMD ["/app/rosetta-rsk", "run"]
+CMD ["./rosetta-rsk", "run"]

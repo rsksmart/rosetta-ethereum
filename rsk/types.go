@@ -94,8 +94,8 @@ const (
 	// of a transfer.
 	TransferGasLimit = int64(21000) //nolint:gomnd
 
-	// MainnetGethArguments are the arguments to start a mainnet geth instance.
-	MainnetGethArguments = `--config=/app/ethereum/geth.toml --gcmode=archive --graphql`
+	// MainnetArguments are the arguments to start a mainnet rskj instance.
+	MainnetArguments = `-Xmx4G -Drsk.conf.file=/app/rsk/rsk.conf -cp /app/rskj-core-latest.jar co.rsk.Start`
 
 	// IncludeMempoolCoins does not apply to rosetta-rsk as it is not UTXO-based.
 	IncludeMempoolCoins = false
@@ -111,8 +111,8 @@ const (
 )
 
 var (
-	// TestnetGethArguments are the arguments to start a ropsten geth instance.
-	TestnetGethArguments = fmt.Sprintf("%s --ropsten", MainnetGethArguments)
+	// TestnetRskjArguments are the arguments to start a testnet rskj instance.
+	TestnetRskjArguments = fmt.Sprintf("%s --testnet", MainnetArguments)
 
 	// MainnetGenesisBlockIdentifier is the *types.BlockIdentifier
 	// of the mainnet genesis block.
